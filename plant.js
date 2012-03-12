@@ -1,10 +1,3 @@
-/* TODO
-
-    3. click/touch on objects
-    4. collisions check
-    5. sprite/primitives rotation
-
-*/
 var PlantSortByIndexes = function (prop, arr) {
     prop = prop.split('.');
     var len = prop.length;
@@ -22,8 +15,6 @@ var PlantSortByIndexes = function (prop, arr) {
     });
     return arr;
 };
-
-
 
 plant = {
 
@@ -113,11 +104,8 @@ plant = {
         
 };
 
-/////////////////////////////////////////////////////////////////////////////////////////
-
 
 plant.Scene.prototype.update = function() {
-
 
     this.nodes = PlantSortByIndexes('index', this.nodes);
 
@@ -126,7 +114,6 @@ plant.Scene.prototype.update = function() {
         var T = this.nodes[i];
         var ctx = this.context;
         
-
         switch(T.type()) {
 
             case 'rectangle':
@@ -185,4 +172,3 @@ plant.Scene.prototype.fillBackground = function(color) {
     this.context.fillStyle = color;
     this.context.fillRect(0, 0, this.htmlNode.width, this.htmlNode.height);
 }
-
