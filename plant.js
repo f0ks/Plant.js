@@ -165,11 +165,6 @@ plant.Scene.prototype.addChild = function(child) {
     this.nodes.push(child);
 }
 
-plant.Scene.prototype.fillBackground = function(color) {
-    this.context.fillStyle = color;
-    this.context.fillRect(0, 0, this.htmlNode.width, this.htmlNode.height);
-}
-
 var PlantSortByIndexes = function (prop, arr) {
     prop = prop.split('.');
     var len = prop.length;
