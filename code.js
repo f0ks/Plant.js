@@ -16,9 +16,14 @@ example = {
         });
         
         var myTxt = new plant.Text({
-            text: 'Hello World again',
+            text: '^^',
         });
-
+        var myAnim = new plant.Rectangle();
+        var rectEnemy = new plant.Rectangle({
+            x: 100,
+            y: 100
+        });
+/*
         var myAnim = new plant.Sprite({
             x: 240, 
             y: 200, 
@@ -31,8 +36,12 @@ example = {
             src: 'player.png', 
             zindex: 11
         });
-
+*/
         function drawPapelac() {
+            myTxt.text = 'x ' + myAnim.x + ' y ' + myAnim.y; 
+            if (plant.Collision(myAnim, rectEnemy)) {
+                myTxt.text = 'COLLISION!!!';
+            }
             myScene.update();
             if (myAnim.xFrame > 2) {
                 myAnim.xFrame = 0;
@@ -67,6 +76,7 @@ example = {
 
         myScene.addChild(myTxt);
         myScene.addChild(myAnim);
+        myScene.addChild(rectEnemy);
         myScene.update();
      
         setInterval(drawPapelac,50);  

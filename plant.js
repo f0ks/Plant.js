@@ -89,6 +89,35 @@ var plant = {
         this.type = function() {
             return 'text';
         };
+    },
+
+    Collision: function(obj1, obj2) {
+
+        var x1 = obj1.x;
+        var y1 = obj1.y;
+        var w1 = obj1.width;
+        var h1 = obj1.height;
+
+        var x2 = obj2.x;
+        var y2 = obj2.y;
+        var w2 = obj2.width;
+        var h2 = obj2.height;
+
+        w2 += x2;
+        w1 += x1;
+
+        if (x2 > w1 || x1 > w2) {
+            return false;
+        }
+
+        h2 += y2;
+        h1 += y1;
+
+        if (y2 > h1 || y1 > h2) {
+            return false;
+        }
+
+        return true;
     }
         
 };
