@@ -1,4 +1,10 @@
 example = {
+
+    isLeftPressed : false,
+    isRightPressed : false,
+    isUpPressed : false,
+    isDownPressed : false,
+
     onPageLoad: function()
     {
     
@@ -33,6 +39,30 @@ example = {
             } else {
                 myAnim.xFrame++;
             }
+
+            if (example.isLeftPressed) {
+                if (myAnim.x > 0) {
+                    myAnim.x -= 8;
+                }
+            }
+
+            if (example.isRightPressed) {
+                if (myAnim.x < 300) {
+                    myAnim.x += 8;
+                }
+            }
+
+            if (example.isDownPressed) {
+                if (myAnim.y < 430) {
+                    myAnim.y += 8;
+                }
+            }
+
+            if (example.isUpPressed) {
+                if (myAnim.y > 45) {
+                    myAnim.y -= 8;
+                }
+            }
         }
 
         myScene.addChild(myTxt);
@@ -41,7 +71,50 @@ example = {
      
         setInterval(drawPapelac,50);  
 
-    }
+
+    },
+
+
+    keyDown: function(e) {
+        console.log(e.keyCode);
+        // left
+        if (e.keyCode == 37) {
+            example.isLeftPressed = true;
+        }
+        // right
+        if (e.keyCode == 39) {
+            example.isRightPressed = true;
+        }
+        // down
+        if (e.keyCode == 40) {
+            example.isDownPressed = true;
+        }
+        // up
+        if (e.keyCode == 38) {
+            example.isUpPressed = true;
+        }
+    },
+
+    keyUp: function(e) {
+        // left
+        if (e.keyCode == 37) {
+            example.isLeftPressed = false;
+        }
+        // right
+        if (e.keyCode == 39) {
+            example.isRightPressed = false;
+        }
+        // down
+        if (e.keyCode == 40) {
+            example.isDownPressed = false;
+        }
+        // up
+        if (e.keyCode == 38) {
+            example.isUpPressed = false;
+        }
+    },
 };
 
 window.addEventListener('load', example.onPageLoad, false);
+window.addEventListener('keydown', example.keyDown, false);
+window.addEventListener('keyup', example.keyUp, false);
