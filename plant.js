@@ -76,7 +76,7 @@ var plant = {
 
     Text: function(options) {
         options = options || {};
-        this.font = options.font || '12pt sans-serif';
+        this.font = options.font || '10pt sans-serif';
         this.color = options.color || 'white';
         this.x = options.x || 0;
         this.y = options.y || 0;
@@ -118,6 +118,26 @@ var plant = {
         }
 
         return true;
+    },
+
+    SortByIndexes: function (prop, arr) {
+
+        prop = prop.split('.');
+        var len = prop.length;
+
+        arr.sort(function (a, b) {
+            var i = 0;
+            while( i < len ) { a = a[prop[i]]; b = b[prop[i]]; i++; }
+            if (a < b) {
+                return -1;
+            } else if (a > b) {
+                return 1;
+            } else {
+                return 0;
+            }
+        });
+        return arr;
+
     }
         
 };
@@ -130,7 +150,7 @@ plant.Scene.prototype.update = function() {
     this.context.fillRect(0, 0, this.htmlNode.width, this.htmlNode.height);
 
     // sort objects by zindexes
-    this.nodes = PlantSortByIndexes('zindex', this.nodes);
+    this.nodes = plant.SortByIndexes('zindex', this.nodes);
 
     for(var i=0; i < this.nodes.length; i++) {
 
@@ -188,27 +208,13 @@ plant.Scene.prototype.update = function() {
 }
 
 plant.Scene.prototype.addChild = function(child) {
+
     if (child.type == 'sprite') {
+        // attach image
         child.node.src = child.src;
     }
+
     this.nodes.push(child);
+
 }
-
-var PlantSortByIndexes = function (prop, arr) {
-    prop = prop.split('.');
-    var len = prop.length;
-
-    arr.sort(function (a, b) {
-        var i = 0;
-        while( i < len ) { a = a[prop[i]]; b = b[prop[i]]; i++; }
-        if (a < b) {
-            return -1;
-        } else if (a > b) {
-            return 1;
-        } else {
-            return 0;
-        }
-    });
-    return arr;
-};
 
