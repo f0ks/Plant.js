@@ -2,6 +2,7 @@ var example = {
 
     enemies: [],
     bullets: [],
+    enemyCount: 0,
 
     isLeftPressed : false,
     isRightPressed : false,
@@ -37,6 +38,12 @@ var example = {
             color: 'white'
         });
 
+        var myTxt3 = new plant.Text({
+            x: 200,
+            y: 5,
+            color: 'white',
+            text: 'стрелки и проблел'
+        });
         var myBomb = new plant.Rectangle({
             width: 3,
             height: 3,
@@ -96,44 +103,11 @@ var example = {
             color: '#aaf',
             zindex: 0
         });
-//////////////////// st
-        var myEnemy2 = new plant.Sprite({
-            x: 40, 
-            y: 467, 
-            width: 14,
-            height: 13,
-            frameWidth: 14,
-            frameHeight: 13,
-            xFrame: 0,
-            yFrame: 0,
-            src: 'enemy.png', 
-            zindex: 2,
-        });
 
-        // set some custom properties
-        myEnemy2.isGoRight = true;
-        myEnemy2.shotPosition = 0;
-        myEnemy2.isGunLoaded = false;
-        myEnemy2.isShot = false;
-        myEnemy2.isDying = false;
-        myEnemy2.isDead = false;
-        myEnemy2.shotPosition = plant.Random(10, 300);
-
-        var myEnemyBullet2 = new plant.Rectangle({
-            width: 1,
-            height: 5,
-            color: '#aaf',
-            zindex: 0
-        });
-
-        example.enemies[0] = myEnemy2;
-        example.bullets[0] = myEnemyBullet2;
-        myScene.addChild(example.enemies[0]);
-        myScene.addChild(example.bullets[0]);
-////////////// end
         
         myScene.addChild(myTxt);
         myScene.addChild(myTxt2);
+        myScene.addChild(myTxt3);
         myScene.addChild(myPlayer);
         myScene.addChild(myPlayerExplosion);
         myScene.addChild(myBomb);
@@ -141,10 +115,149 @@ var example = {
         myScene.addChild(myEnemyBullet);
 
         setInterval(gameLoop, 50);  
+        setInterval(addEnemy, 1800);  
+
+        function addEnemy() {
+        if (example.enemyCount < 40) {
+                var myEnemy = new plant.Sprite({
+                    x: 0, 
+                    y: 467, 
+                    width: 14,
+                    height: 13,
+                    frameWidth: 14,
+                    frameHeight: 13,
+                    xFrame: 0,
+                    yFrame: 0,
+                    src: 'enemy.png', 
+                    zindex: 2,
+                });
+
+                // set some custom properties
+                myEnemy.isGoRight = true;
+                myEnemy.shotPosition = 0;
+                myEnemy.isGunLoaded = false;
+                myEnemy.isShot = false;
+                myEnemy.isDying = false;
+                myEnemy.isDead = false;
+                myEnemy.shotPosition = plant.Random(10, 300);
+
+                var myEnemyBullet = new plant.Rectangle({
+                    width: 1,
+                    height: 5,
+                    color: '#aaf',
+                    zindex: 0
+                });
+
+                example.enemies[example.enemyCount] = myEnemy;
+                example.bullets[example.enemyCount] = myEnemyBullet;
+                myScene.addChild(example.enemies[example.enemyCount]);
+                myScene.addChild(example.bullets[example.enemyCount]);
+                example.enemyCount++;
+            }
+        }
 
 
         function gameLoop() {
 
+            for(var i=0; i < example.enemies.length; i++) {
+
+                //// st
+                // stick bullet to enemy
+                if (!example.enemies[i].isShot) {
+                    example.bullets[i].x = example.enemies[i].x + 8;
+                    example.bullets[i].y = example.enemies[i].y + 8;
+                }
+                //// end
+                
+                //// st
+                // hit on enemy check
+                if (plant.Collision(myBomb, example.enemies[i]) && !example.enemies[i].isDead) {
+                    example.enemies[i].isDying = true;
+                    example.enemies[i].yFrame = 1;
+                    example.enemies[i].xFrame = 0;
+                    example.score += 10;
+                }
+                //// eno
+
+                    ///// st
+                // hit on player check
+                if (plant.Collision(myPlayer, example.bullets[i])) {
+
+                    plant.isDying = true;
+
+                    myPlayerExplosion.x = myPlayer.x - 10;
+                    myPlayerExplosion.y = myPlayer.y - 5;
+                    myPlayerExplosion.visible = true;
+
+                    myTxt2.text = 'ПЕДИК';
+                }
+                ///// end
+
+                ///// st
+                // enemy animation
+                if (!example.enemies[i].isDying) {
+                    // normal animation
+                    if (example.enemies[i].xFrame > 1) {
+                        example.enemies[i].xFrame = 0;
+                    } else {
+                        example.enemies[i].xFrame++;
+                    }
+                } else if (example.enemies[i].isDying && !example.enemies[i].isDead) {
+                    // dying animation
+                    if (example.enemies[i].xFrame < 2) {
+                        example.enemies[i].xFrame++;
+                    } else {
+                        example.enemies[i].isDead = true;
+                    }
+                }
+                ///// en
+
+                
+                //// st
+                // move enemy
+                if (!example.enemies[i].isDying) {
+                    if (example.enemies[i].isGoRight) {
+                        example.enemies[i].x += 2;
+                    } else {
+                        example.enemies[i].x -= 2;
+                    }
+
+                    if (example.enemies[i].x > 300) {
+                        example.enemies[i].isGoRight = false;
+                    } 
+                    if (example.enemies[i].x < 10) {
+                        example.enemies[i].isGoRight = true;
+                    } 
+                }
+
+                // enemy shot
+                if(example.enemies[i].isGunLoaded) {
+                    // set random shot position
+                    example.enemies[i].shotPosition = plant.Random(10, 300);
+                    example.enemies[i].isGunLoaded = false;
+                }
+                //// en
+                
+                /// st
+                // bullet animation
+                if (example.enemies[i].isShot) {
+                    example.bullets[i].y -= 12;
+                    if (example.bullets[i].y < 0) {
+                        example.bullets[i].isShot = false;
+                    }
+                }
+
+                // shoot if we're close to shot position
+                if (Math.abs(example.enemies[i].x - example.enemies[i].shotPosition) < 5 && !example.enemies[i].isGunLoaded) {
+                    // shoot
+                    example.enemies[i].isShot = true;
+                    // reload a gun
+                    example.enemies[i].isGunLoaded = true;
+                }
+                /// end
+ 
+
+            }
 
              
 
@@ -173,13 +286,6 @@ var example = {
                 myEnemyBullet.y = myEnemy.y + 1;
             }
 
-            //// st
-            // stick bullet to enemy
-            if (!example.enemies[0].isShot) {
-                example.bullets[0].x = example.enemies[0].x + 8;
-                example.bullets[0].y = example.enemies[0].y + 8;
-            }
-            //// end
             
             // hit on enemy check
             if (plant.Collision(myBomb, myEnemy) && !myEnemy.isDead) {
@@ -189,15 +295,7 @@ var example = {
                 example.score += 10;
             }
 
-            //// st
-            // hit on enemy check
-            if (plant.Collision(myBomb, example.enemies[0]) && !example.enemies[0].isDead) {
-                example.enemies[0].isDying = true;
-                example.enemies[0].yFrame = 1;
-                example.enemies[0].xFrame = 0;
-                example.score += 10;
-            }
-            //// end
+            
             
             // hit on player check
             if (plant.Collision(myPlayer, myEnemyBullet)) {
@@ -211,19 +309,7 @@ var example = {
                 myTxt2.text = 'ПЕДИК';
             }
 
-            ///// st
-            // hit on player check
-            if (plant.Collision(myPlayer, example.bullets[0])) {
-
-                plant.isDying = true;
-
-                myPlayerExplosion.x = myPlayer.x - 10;
-                myPlayerExplosion.y = myPlayer.y - 5;
-                myPlayerExplosion.visible = true;
-
-                myTxt2.text = 'ПЕДИК';
-            }
-            ///// end
+           
 
             // player animation
             if (!plant.isDying) {
@@ -262,24 +348,7 @@ var example = {
                 }
             }
 
-            ///// st
-            // enemy animation
-            if (!example.enemies[0].isDying) {
-                // normal animation
-                if (example.enemies[0].xFrame > 1) {
-                    example.enemies[0].xFrame = 0;
-                } else {
-                    example.enemies[0].xFrame++;
-                }
-            } else if (example.enemies[0].isDying && !example.enemies[0].isDead) {
-                // dying animation
-                if (example.enemies[0].xFrame < 2) {
-                    example.enemies[0].xFrame++;
-                } else {
-                    example.enemies[0].isDead = true;
-                }
-            }
-            ///// end
+            
 
             // move enemy
             if (!myEnemy.isDying) {
@@ -304,30 +373,7 @@ var example = {
                 myEnemy.isGunLoaded = false;
             }
 
-            //// st
-            // move enemy
-            if (!example.enemies[0].isDying) {
-                if (example.enemies[0].isGoRight) {
-                    example.enemies[0].x += 2;
-                } else {
-                    example.enemies[0].x -= 2;
-                }
-
-                if (example.enemies[0].x > 300) {
-                    example.enemies[0].isGoRight = false;
-                } 
-                if (example.enemies[0].x < 10) {
-                    example.enemies[0].isGoRight = true;
-                } 
-            }
-
-            // enemy shot
-            if(example.enemies[0].isGunLoaded) {
-                // set random shot position
-                example.enemies[0].shotPosition = plant.Random(10, 300);
-                example.enemies[0].isGunLoaded = false;
-            }
-            //// end
+           
 
             // bullet animation
             if (myEnemy.isShot) {
@@ -345,23 +391,7 @@ var example = {
                 myEnemy.isGunLoaded = true;
             }
 
-            /// st
-            // bullet animation
-            if (example.enemies[0].isShot) {
-                example.bullets[0].y -= 12;
-                if (example.bullets[0].y < 0) {
-                    example.bullets[0].isShot = false;
-                }
-            }
-
-            // shoot if we're close to shot position
-            if (Math.abs(example.enemies[0].x - example.enemies[0].shotPosition) < 5 && !example.enemies[0].isGunLoaded) {
-                // shoot
-                example.enemies[0].isShot = true;
-                // reload a gun
-                example.enemies[0].isGunLoaded = true;
-            }
-            /// end
+          
 
 
             myTxt.text = 'score: ' + example.score;
