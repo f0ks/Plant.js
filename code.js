@@ -8,6 +8,9 @@ var example = {
 
     isBombDropped: false,
 
+    isDying: false,
+    isDead: false,
+
     score: 0,
 
     onPageLoad: function() {
@@ -22,23 +25,20 @@ var example = {
         var myTxt = new plant.Text({
             x: 5,
             y: 5,
-            color: '#99ff99'
+            color: '#9f9',
         });
 
-        var myBomb = new plant.Ellipse({
+        var myTxt2 = new plant.Text({
+            x: 140,
+            y: 220,
+            color: 'white'
+        });
+
+        var myBomb = new plant.Rectangle({
             width: 3,
             height: 3,
-            color: '#fff'
+            color: 'green'
         });
-
-/*
-        var rectEnemy = new plant.Rectangle({
-            width: 25,
-            height: 25,
-            x: 150,
-            y: 460 
-        });
-*/
 
         var myPlayer = new plant.Sprite({
             x: 240, 
@@ -50,12 +50,24 @@ var example = {
             xFrame: 3,
             yFrame: 0,
             src: 'player.png', 
-            zindex: 2 
+            zindex: 2,
+        });
+
+        var myPlayerExplosion = new plant.Sprite({
+            width: 34,
+            height: 34,
+            frameWidth: 34,
+            frameHeight: 34,
+            xFrame: 0,
+            yFrame: 0,
+            src: 'explosion.png', 
+            zindex: 3,
+            visible: false
         });
 
         var myEnemy = new plant.Sprite({
-            x: 150, 
-            y: 465, 
+            x: 20, 
+            y: 467, 
             width: 14,
             height: 13,
             frameWidth: 14,
@@ -63,13 +75,46 @@ var example = {
             xFrame: 0,
             yFrame: 0,
             src: 'enemy.png', 
-            zindex: 2 
+            zindex: 2,
         });
+
+        // set some custom properties
+        myEnemy.isGoRight = true;
+        myEnemy.shotPosition = 0;
+        myEnemy.isGunLoaded = false;
+        myEnemy.isShot = false;
+        myEnemy.isDying = false;
+        myEnemy.isDead = false;
+        myEnemy.shotPosition = plant.Random(10, 300);
+
+        var myEnemyBullet = new plant.Rectangle({
+            width: 1,
+            height: 5,
+            color: '#aaf',
+            zindex: 0
+        });
+
+        
+        myScene.addChild(myTxt);
+        myScene.addChild(myTxt2);
+        myScene.addChild(myPlayer);
+        myScene.addChild(myPlayerExplosion);
+        myScene.addChild(myBomb);
+        myScene.addChild(myEnemy);
+        myScene.addChild(myEnemyBullet);
+
+        setInterval(gameLoop, 50);  
+
+
         function gameLoop() {
+
+
+             
+
 
             // drop bomb
             if(example.isSpaceHit) {
-                if (myBomb.y < 460) {
+                if (myBomb.y < 470) {
                     myBomb.y += 10;
                     example.isBombDropped = true;
                 } else {
@@ -78,35 +123,121 @@ var example = {
                 }
             }
 
+            // stick bomb to player
             if (!example.isBombDropped) {
                 myBomb.x = myPlayer.x + 6;
                 myBomb.y = myPlayer.y + 26;
-            } else {
-
             }
 
-            myTxt.text = 'score: ' + example.score;
-            if (plant.Collision(myBomb, myEnemy)) {
-                //myTxt.text = 'COLLISION!!!';
+
+            // stick bullet to enemy
+            if (!myEnemy.isShot) {
+                myEnemyBullet.x = myEnemy.x + 8;
+                myEnemyBullet.y = myEnemy.y + 1;
+            }
+            
+            // hit on enemy check
+            if (plant.Collision(myBomb, myEnemy) && !myEnemy.isDead) {
+                myEnemy.isDying = true;
+                myEnemy.yFrame = 1;
+                myEnemy.xFrame = 0;
                 example.score += 10;
             }
+            
+            // hit on player check
+            if (plant.Collision(myPlayer, myEnemyBullet)) {
 
+                plant.isDying = true;
+
+                myPlayerExplosion.x = myPlayer.x - 10;
+                myPlayerExplosion.y = myPlayer.y - 5;
+                myPlayerExplosion.visible = true;
+
+                myTxt2.text = 'ПЕДИК';
+            }
 
             // player animation
-            if (myPlayer.xFrame > 2) {
-                myPlayer.xFrame = 0;
-            } else {
-                myPlayer.xFrame++;
+            if (!plant.isDying) {
+                if (myPlayer.xFrame > 2) {
+                    myPlayer.xFrame = 0;
+                } else {
+                    myPlayer.xFrame++;
+                }
+            } else if (plant.isDying && !plant.isDead) {
+                // dying animation
+                if (myPlayerExplosion.xFrame < 2) {
+                    myPlayerExplosion.xFrame++;
+                } else {
+                    plant.isDead = true;
+                    myPlayer.visible = false;
+                    myPlayerExplosion.visible = false;
+                    myBomb.visible = false;
+                }
+
             }
 
             // enemy animation
-            if (myEnemy.xFrame > 1) {
-                myEnemy.xFrame = 0;
-            } else {
-                myEnemy.xFrame++;
+            if (!myEnemy.isDying) {
+                // normal animation
+                if (myEnemy.xFrame > 1) {
+                    myEnemy.xFrame = 0;
+                } else {
+                    myEnemy.xFrame++;
+                }
+            } else if (myEnemy.isDying && !myEnemy.isDead) {
+                // dying animation
+                if (myEnemy.xFrame < 2) {
+                    myEnemy.xFrame++;
+                } else {
+                    myEnemy.isDead = true;
+                }
             }
 
+            // move enemy
+            if (!myEnemy.isDying) {
+                if (myEnemy.isGoRight) {
+                    myEnemy.x += 2;
+                } else {
+                    myEnemy.x -= 2;
+                }
+
+                if (myEnemy.x > 300) {
+                    myEnemy.isGoRight = false;
+                } 
+                if (myEnemy.x < 10) {
+                    myEnemy.isGoRight = true;
+                } 
+            }
+
+            // enemy shot
+            if(myEnemy.isGunLoaded) {
+                // set random shot position
+                myEnemy.shotPosition = plant.Random(10, 300);
+                myEnemy.isGunLoaded = false;
+            }
+
+            // bullet animation
+            if (myEnemy.isShot) {
+                myEnemyBullet.y -= 12;
+                if (myEnemyBullet.y < 0) {
+                    myEnemy.isShot = false;
+                }
+            }
+
+            // shoot if we're close to shot position
+            if (Math.abs(myEnemy.x - myEnemy.shotPosition) < 5 && !myEnemy.isGunLoaded) {
+                // shoot
+                myEnemy.isShot = true;
+                // reload a gun
+                myEnemy.isGunLoaded = true;
+            }
+
+
+            myTxt.text = 'score: ' + example.score;
+
+            // we have to update scene before listen key input to prevent shaky move
             myScene.update();
+
             if (example.isLeftPressed) {
                 if (myPlayer.x > 10) {
                     myPlayer.x -= 8;
@@ -133,18 +264,11 @@ var example = {
 
         }
 
-        myScene.addChild(myTxt);
-        myScene.addChild(myPlayer);
-        myScene.addChild(myBomb);
-        myScene.addChild(myEnemy);
-     
-        setInterval(gameLoop,50);  
 
     },
 
 
     keyDown: function(e) {
-        //console.log(e.keyCode);
         // left
         if (e.keyCode == 37) {
             example.isLeftPressed = true;

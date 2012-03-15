@@ -27,7 +27,13 @@ var plant = {
         this.x = options.x || 0;
         this.y = options.y || 0;
         this.zindex = options.zindex || 1;
-        this.visible = options.visible || true;
+
+        if (options.visible !== undefined) {
+            this.visible = options.visible;
+        } else {
+            this.visible = true;
+        }
+
         this.type = function() {
             return 'rectangle';
         };
@@ -41,7 +47,13 @@ var plant = {
         this.x = options.x || 0;
         this.y = options.y || 0;
         this.zindex = options.zindex || 1;
-        this.visible = options.visible || true;
+
+        if (options.visible !== undefined) {
+            this.visible = options.visible;
+        } else {
+            this.visible = true;
+        }
+
         this.type = function() {
             return 'ellipse';
         };
@@ -67,7 +79,12 @@ var plant = {
         this.y = options.y || 0;
 
         this.zindex = options.zindex || 1;
-        this.visible = options.visible || true;
+
+        if (options.visible !== undefined) {
+            this.visible = options.visible;
+        } else {
+            this.visible = true;
+        }
         
         this.type = function() {
             return 'sprite';
@@ -84,7 +101,12 @@ var plant = {
         this.text = options.text || '';
 
         this.zindex = options.zindex || 1;
-        this.visible = options.visible || true;
+
+        if (options.visible !== undefined) {
+            this.visible = options.visible;
+        } else {
+            this.visible = true;
+        }
 
         this.type = function() {
             return 'text';
@@ -138,6 +160,10 @@ var plant = {
         });
         return arr;
 
+    },
+
+    Random: function (from, to) {
+        return Math.floor(Math.random() * (to - from + 1) + from);
     }
         
 };
@@ -209,7 +235,7 @@ plant.Scene.prototype.update = function() {
 
 plant.Scene.prototype.addChild = function(child) {
 
-    if (child.type == 'sprite') {
+    if (child.type === 'sprite') {
         // attach image
         child.node.src = child.src;
     }
