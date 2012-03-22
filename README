@@ -1,2 +1,7 @@
 Plant.js
 JavaScript game library
+
+TODO:
+    1. API docs
+    2. Click on object events
+    3. mouse x, y on canvas object
