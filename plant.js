@@ -1,7 +1,3 @@
-/* ======= TODO
-    -collisons check (rectangle, ellipse)
-    -opacity
-*/
 var plant = {
 
     Scene: function(options) {
