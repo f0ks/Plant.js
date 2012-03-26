@@ -33,17 +33,18 @@ var example = {
         });
 
         var myTxt2 = new plant.Text({
-            x: 140,
+            x: 124,
             y: 220,
             color: 'white'
         });
 
         var myTxt3 = new plant.Text({
-            x: 200,
+            x: 150,
             y: 5,
             color: 'white',
-            text: 'стрелки и проблел'
+            text: 'Controls: arrows and space'
         });
+
         var myBomb = new plant.Rectangle({
             width: 3,
             height: 3,
@@ -75,35 +76,6 @@ var example = {
             visible: false
         });
 
-        var myEnemy = new plant.Sprite({
-            x: 20, 
-            y: 467, 
-            width: 14,
-            height: 13,
-            frameWidth: 14,
-            frameHeight: 13,
-            xFrame: 0,
-            yFrame: 0,
-            src: 'enemy.png', 
-            zindex: 2,
-        });
-
-        // set some custom properties
-        myEnemy.isGoRight = true;
-        myEnemy.shotPosition = 0;
-        myEnemy.isGunLoaded = false;
-        myEnemy.isShot = false;
-        myEnemy.isDying = false;
-        myEnemy.isDead = false;
-        myEnemy.shotPosition = plant.Random(10, 300);
-
-        var myEnemyBullet = new plant.Rectangle({
-            width: 1,
-            height: 5,
-            color: '#aaf',
-            zindex: 0
-        });
-
         
         myScene.addChild(myTxt);
         myScene.addChild(myTxt2);
@@ -111,8 +83,6 @@ var example = {
         myScene.addChild(myPlayer);
         myScene.addChild(myPlayerExplosion);
         myScene.addChild(myBomb);
-        myScene.addChild(myEnemy);
-        myScene.addChild(myEnemyBullet);
 
         setInterval(gameLoop, 50);  
         setInterval(addEnemy, 1800);  
@@ -161,15 +131,12 @@ var example = {
 
             for(var i=0; i < example.enemies.length; i++) {
 
-                //// st
                 // stick bullet to enemy
                 if (!example.enemies[i].isShot) {
                     example.bullets[i].x = example.enemies[i].x + 8;
                     example.bullets[i].y = example.enemies[i].y + 8;
                 }
-                //// end
                 
-                //// st
                 // hit on enemy check
                 if (plant.Collision(myBomb, example.enemies[i]) && !example.enemies[i].isDead) {
                     example.enemies[i].isDying = true;
@@ -177,9 +144,7 @@ var example = {
                     example.enemies[i].xFrame = 0;
                     example.score += 10;
                 }
-                //// eno
 
-                    ///// st
                 // hit on player check
                 if (plant.Collision(myPlayer, example.bullets[i])) {
 
@@ -189,11 +154,9 @@ var example = {
                     myPlayerExplosion.y = myPlayer.y - 5;
                     myPlayerExplosion.visible = true;
 
-                    myTxt2.text = 'ПЕДИК';
+                    myTxt2.text = 'GAME OVER';
                 }
-                ///// end
 
-                ///// st
                 // enemy animation
                 if (!example.enemies[i].isDying) {
                     // normal animation
@@ -210,10 +173,8 @@ var example = {
                         example.enemies[i].isDead = true;
                     }
                 }
-                ///// en
 
                 
-                //// st
                 // move enemy
                 if (!example.enemies[i].isDying) {
                     if (example.enemies[i].isGoRight) {
@@ -236,9 +197,7 @@ var example = {
                     example.enemies[i].shotPosition = plant.Random(10, 300);
                     example.enemies[i].isGunLoaded = false;
                 }
-                //// en
                 
-                /// st
                 // bullet animation
                 if (example.enemies[i].isShot) {
                     example.bullets[i].y -= 12;
@@ -254,12 +213,9 @@ var example = {
                     // reload a gun
                     example.enemies[i].isGunLoaded = true;
                 }
-                /// end
  
 
             }
-
-             
 
 
             // drop bomb
@@ -279,37 +235,6 @@ var example = {
                 myBomb.y = myPlayer.y + 26;
             }
 
-
-            // stick bullet to enemy
-            if (!myEnemy.isShot) {
-                myEnemyBullet.x = myEnemy.x + 8;
-                myEnemyBullet.y = myEnemy.y + 1;
-            }
-
-            
-            // hit on enemy check
-            if (plant.Collision(myBomb, myEnemy) && !myEnemy.isDead) {
-                myEnemy.isDying = true;
-                myEnemy.yFrame = 1;
-                myEnemy.xFrame = 0;
-                example.score += 10;
-            }
-
-            
-            
-            // hit on player check
-            if (plant.Collision(myPlayer, myEnemyBullet)) {
-
-                plant.isDying = true;
-
-                myPlayerExplosion.x = myPlayer.x - 10;
-                myPlayerExplosion.y = myPlayer.y - 5;
-                myPlayerExplosion.visible = true;
-
-                myTxt2.text = 'ПЕДИК';
-            }
-
-           
 
             // player animation
             if (!plant.isDying) {
@@ -331,72 +256,9 @@ var example = {
 
             }
 
-            // enemy animation
-            if (!myEnemy.isDying) {
-                // normal animation
-                if (myEnemy.xFrame > 1) {
-                    myEnemy.xFrame = 0;
-                } else {
-                    myEnemy.xFrame++;
-                }
-            } else if (myEnemy.isDying && !myEnemy.isDead) {
-                // dying animation
-                if (myEnemy.xFrame < 2) {
-                    myEnemy.xFrame++;
-                } else {
-                    myEnemy.isDead = true;
-                }
-            }
-
-            
-
-            // move enemy
-            if (!myEnemy.isDying) {
-                if (myEnemy.isGoRight) {
-                    myEnemy.x += 2;
-                } else {
-                    myEnemy.x -= 2;
-                }
-
-                if (myEnemy.x > 300) {
-                    myEnemy.isGoRight = false;
-                } 
-                if (myEnemy.x < 10) {
-                    myEnemy.isGoRight = true;
-                } 
-            }
-
-            // enemy shot
-            if(myEnemy.isGunLoaded) {
-                // set random shot position
-                myEnemy.shotPosition = plant.Random(10, 300);
-                myEnemy.isGunLoaded = false;
-            }
-
-           
-
-            // bullet animation
-            if (myEnemy.isShot) {
-                myEnemyBullet.y -= 12;
-                if (myEnemyBullet.y < 0) {
-                    myEnemy.isShot = false;
-                }
-            }
-
-            // shoot if we're close to shot position
-            if (Math.abs(myEnemy.x - myEnemy.shotPosition) < 5 && !myEnemy.isGunLoaded) {
-                // shoot
-                myEnemy.isShot = true;
-                // reload a gun
-                myEnemy.isGunLoaded = true;
-            }
-
-          
-
-
             myTxt.text = 'score: ' + example.score;
 
-            // we have to update scene before listen key input to prevent shaky move
+            // we have to update scene before listen key input to prevent shaky animation
             myScene.update();
 
             if (example.isLeftPressed) {
@@ -475,3 +337,4 @@ var example = {
 window.addEventListener('load', example.onPageLoad, false);
 window.addEventListener('keydown', example.keyDown, false);
 window.addEventListener('keyup', example.keyUp, false);
+
