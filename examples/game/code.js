@@ -124,6 +124,16 @@ var example = {
                 myScene.addChild(example.bullets[example.enemyCount]);
                 example.enemyCount++;
             }
+
+
+            //myScene.htmlNode.addEventListener('mousemove', myScene.getMousePosition, false);
+            //myScene.blah();
+
+            window.addEventListener('mousemove', function() {
+//                console.log(myScene.mouseX + ' ' + myScene.mouseY);
+ //               console.log(myScene);
+            }, false);
+
         }
 
 

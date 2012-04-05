@@ -1,18 +1,46 @@
 var plant = {
 
     Scene: function(options) {
-        options = options || {};
-        this.width = options.width || '320';
-        this.height = options.height || '240';
-        this.background = options.background || 'black';
-        this.nodes = [];
-        this.htmlNode = document.getElementById(options.htmlNodeId);
-        if (this.htmlNode.getContext) {
-            this.context = this.htmlNode.getContext('2d');
-            this.htmlNode.width = options.width;
-            this.htmlNode.height = options.height;
+        
+        if (options.width !== undefined) {
+            this.width = options.width;
+        } else {
+            this.width = 320;
         }
 
+        if (options.height !== undefined) {
+            this.height = options.height;
+        } else {
+            this.height = 240;
+        }
+
+        if (options.background !== undefined) {
+            this.background = options.background;
+        } else {
+            this.background = 'black';
+        }
+        
+        // canvas id is mandatory option
+        this.htmlNode = document.getElementById(options.htmlNodeId);
+
+        this.nodes = [];
+        this.mouseX = 0;
+        this.mouseY = 0;
+
+        if (this.htmlNode.getContext) {
+            this.context = this.htmlNode.getContext('2d');
+            this.htmlNode.width = this.width;
+            this.htmlNode.height = this.height;
+        }
+
+        var curScene = this;
+        this.htmlNode.addEventListener('mousemove', function(e) {
+
+            curScene.mouseX = e.clientX - curScene.htmlNode.offsetLeft;
+            curScene.mouseY = e.clientY - curScene.htmlNode.offsetTop;
+
+        }, false);
+        
     },
 
     Rectangle: function(options) {
@@ -109,6 +137,7 @@ var plant = {
         };
     },
 
+    // check for collision
     Collision: function(obj1, obj2) {
 
         var x1 = obj1.x;
@@ -138,6 +167,7 @@ var plant = {
         return true;
     },
 
+    // sort objects by zindexes
     SortByIndexes: function (prop, arr) {
 
         prop = prop.split('.');
@@ -145,7 +175,11 @@ var plant = {
 
         arr.sort(function (a, b) {
             var i = 0;
-            while( i < len ) { a = a[prop[i]]; b = b[prop[i]]; i++; }
+            while (i < len) { 
+                a = a[prop[i]]; 
+                b = b[prop[i]]; 
+                i++; 
+            }
             if (a < b) {
                 return -1;
             } else if (a > b) {
@@ -158,6 +192,7 @@ var plant = {
 
     },
 
+    // random int
     Random: function (from, to) {
         return Math.floor(Math.random() * (to - from + 1) + from);
     }
@@ -174,7 +209,7 @@ plant.Scene.prototype.update = function() {
     // sort objects by zindexes
     this.nodes = plant.SortByIndexes('zindex', this.nodes);
 
-    for(var i=0; i < this.nodes.length; i++) {
+    for(var i = 0; i < this.nodes.length; i++) {
 
         var T = this.nodes[i];
         var ctx = this.context;
@@ -232,11 +267,10 @@ plant.Scene.prototype.update = function() {
 plant.Scene.prototype.addChild = function(child) {
 
     if (child.type === 'sprite') {
-        // attach image
+        // attach image if sprite
         child.node.src = child.src;
     }
 
     this.nodes.push(child);
-
 }
 

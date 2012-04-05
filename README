@@ -4,6 +4,8 @@ JavaScript game library
 TODO:
     1. API docs
     2. Click on object events
-    3. mouse x, y on canvas object
+    3. mouse x, y on canvas object [done]
     4. opacity
+    5. options for text: font, size
+    6. sounds
 
