@@ -4,23 +4,53 @@ var multicanv = {
         var canv1 = new plant.Scene({
             htmlNodeId: 'canvas1',
         });
-        canv1.update();
+        var text1 = new plant.Text({
+            x: 5,
+            y: 5,
+        });
+        canv1.addChild(text1);
 
         var canv2 = new plant.Scene({
             htmlNodeId: 'canvas2',
         });
-        canv2.update();
+        var text2 = new plant.Text({
+            x: 5,
+            y: 5,
+        });
+        canv2.addChild(text2);
 
         var canv3 = new plant.Scene({
             htmlNodeId: 'canvas3',
         });
-        canv3.update();
+        var text3 = new plant.Text({
+            x: 5,
+            y: 5,
+        });
+        canv3.addChild(text3);
 
         var canv4 = new plant.Scene({
             htmlNodeId: 'canvas4',
         });
-        canv4.update();
-    }
+        var text4 = new plant.Text({
+            x: 5,
+            y: 5,
+        });
+        canv4.addChild(text4);
+
+        var loop = function() {
+            text1.text = canv1.mouseX + ' ' + canv1.mouseY;
+            canv1.update();
+            text2.text = canv2.mouseX + ' ' + canv2.mouseY;
+            canv2.update();
+            text3.text = canv3.mouseX + ' ' + canv3.mouseY;
+            canv3.update();
+            text4.text = canv4.mouseX + ' ' + canv4.mouseY;
+            canv4.update();
+        };
+
+        setInterval(loop, 50);  
+    },
+
 };
 
 

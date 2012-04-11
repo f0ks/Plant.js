@@ -84,10 +84,8 @@ var example = {
         myScene.addChild(myPlayerExplosion);
         myScene.addChild(myBomb);
 
-        setInterval(gameLoop, 50);  
-        setInterval(addEnemy, 1800);  
 
-        function addEnemy() {
+        var addEnemy = function() {
         if (example.enemyCount < 40) {
                 var myEnemy = new plant.Sprite({
                     x: 0, 
@@ -125,19 +123,10 @@ var example = {
                 example.enemyCount++;
             }
 
-
-            //myScene.htmlNode.addEventListener('mousemove', myScene.getMousePosition, false);
-            //myScene.blah();
-
-            window.addEventListener('mousemove', function() {
-//                console.log(myScene.mouseX + ' ' + myScene.mouseY);
- //               console.log(myScene);
-            }, false);
-
-        }
+        };
 
 
-        function gameLoop() {
+        var gameLoop = function() {
 
             for(var i=0; i < example.enemies.length; i++) {
 
@@ -156,9 +145,9 @@ var example = {
                 }
 
                 // hit on player check
-                if (plant.Collision(myPlayer, example.bullets[i])) {
+                if (plant.Collision(myPlayer, example.bullets[i]) && !example.isDead) {
 
-                    plant.isDying = true;
+                    example.isDying = true;
 
                     myPlayerExplosion.x = myPlayer.x - 10;
                     myPlayerExplosion.y = myPlayer.y - 5;
@@ -203,7 +192,7 @@ var example = {
 
                 // enemy shot
                 if(example.enemies[i].isGunLoaded) {
-                    // set random shot position
+                    // set random shot position between 10 and 300
                     example.enemies[i].shotPosition = plant.Random(10, 300);
                     example.enemies[i].isGunLoaded = false;
                 }
@@ -220,10 +209,9 @@ var example = {
                 if (Math.abs(example.enemies[i].x - example.enemies[i].shotPosition) < 5 && !example.enemies[i].isGunLoaded) {
                     // shoot
                     example.enemies[i].isShot = true;
-                    // reload a gun
+                    // reload the gun
                     example.enemies[i].isGunLoaded = true;
                 }
- 
 
             }
 
@@ -247,18 +235,18 @@ var example = {
 
 
             // player animation
-            if (!plant.isDying) {
+            if (!example.isDying) {
                 if (myPlayer.xFrame > 2) {
                     myPlayer.xFrame = 0;
                 } else {
                     myPlayer.xFrame++;
                 }
-            } else if (plant.isDying && !plant.isDead) {
+            } else if (example.isDying && !example.isDead) {
                 // dying animation
                 if (myPlayerExplosion.xFrame < 2) {
                     myPlayerExplosion.xFrame++;
                 } else {
-                    plant.isDead = true;
+                    example.isDead = true;
                     myPlayer.visible = false;
                     myPlayerExplosion.visible = false;
                     myBomb.visible = false;
@@ -268,7 +256,8 @@ var example = {
 
             myTxt.text = 'score: ' + example.score;
 
-            // we have to update scene before listen key input to prevent shaky animation
+            // we have to update scene before listen any key input 
+            // to prevent shaky animation
             myScene.update();
 
             if (example.isLeftPressed) {
@@ -295,50 +284,52 @@ var example = {
                 }
             }
 
-        }
+        };
 
+        setInterval(gameLoop, 50);  
+        setInterval(addEnemy, 1800);  
 
     },
 
 
     keyDown: function(e) {
         // left
-        if (e.keyCode == 37) {
+        if (e.keyCode === 37) {
             example.isLeftPressed = true;
         }
         // right
-        if (e.keyCode == 39) {
+        if (e.keyCode === 39) {
             example.isRightPressed = true;
         }
         // down
-        if (e.keyCode == 40) {
+        if (e.keyCode === 40) {
             example.isDownPressed = true;
         }
         // up
-        if (e.keyCode == 38) {
+        if (e.keyCode === 38) {
             example.isUpPressed = true;
         }
-        // hit space
-        if (e.keyCode == 32) {
+        // space
+        if (e.keyCode === 32) {
             example.isSpaceHit = true;
         }
     },
 
     keyUp: function(e) {
         // left
-        if (e.keyCode == 37) {
+        if (e.keyCode === 37) {
             example.isLeftPressed = false;
         }
         // right
-        if (e.keyCode == 39) {
+        if (e.keyCode === 39) {
             example.isRightPressed = false;
         }
         // down
-        if (e.keyCode == 40) {
+        if (e.keyCode === 40) {
             example.isDownPressed = false;
         }
         // up
-        if (e.keyCode == 38) {
+        if (e.keyCode === 38) {
             example.isUpPressed = false;
         }
     },
