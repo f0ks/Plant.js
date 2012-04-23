@@ -27,6 +27,10 @@ var plant = {
         this.mouseX = 0;
         this.mouseY = 0;
 
+        this.onClick = function() {
+            // nop
+        };
+
         if (this.htmlNode.getContext) {
             this.context = this.htmlNode.getContext('2d');
             this.htmlNode.width = this.width;
@@ -35,12 +39,13 @@ var plant = {
 
         var curScene = this;
         this.htmlNode.addEventListener('mousemove', function(e) {
-
             curScene.mouseX = e.clientX - curScene.htmlNode.offsetLeft;
             curScene.mouseY = e.clientY - curScene.htmlNode.offsetTop;
-
         }, false);
         
+        this.htmlNode.addEventListener('click', function(e) {
+            console.log('click');
+        }, false);
     },
 
     Rectangle: function(options) {
@@ -58,9 +63,14 @@ var plant = {
             this.visible = true;
         }
 
+        this.onClick = function() {
+            // nop
+        };
+
         this.type = function() {
             return 'rectangle';
         };
+
     },
 
     Ellipse: function(options) {
@@ -77,6 +87,10 @@ var plant = {
         } else {
             this.visible = true;
         }
+
+        this.onClick = function() {
+            // nop
+        };
 
         this.type = function() {
             return 'ellipse';
@@ -109,6 +123,10 @@ var plant = {
         } else {
             this.visible = true;
         }
+
+        this.onClick = function() {
+            // nop
+        };
         
         this.type = function() {
             return 'sprite';
@@ -131,6 +149,10 @@ var plant = {
         } else {
             this.visible = true;
         }
+
+        this.onClick = function() {
+            // nop
+        };
 
         this.type = function() {
             return 'text';
