@@ -26,6 +26,19 @@ var example = {
             height: 480
         });
         
+        var background = new plant.Sprite({
+            x: 0,
+            y: 0,
+            frameWidth: 320,
+            frameHeight: 480,
+            xFrame: 0,
+            yFrame: 0,
+            width: 320,
+            height: 480,
+            src: 'bg.png', 
+            zindex: 1
+        });
+
         var myTxt = new plant.Text({
             x: 5,
             y: 5,
@@ -77,6 +90,7 @@ var example = {
         });
 
         
+        myScene.addChild(background);
         myScene.addChild(myTxt);
         myScene.addChild(myTxt2);
         myScene.addChild(myTxt3);
@@ -89,7 +103,7 @@ var example = {
         if (example.enemyCount < 40) {
                 var myEnemy = new plant.Sprite({
                     x: 0, 
-                    y: 467, 
+                    y: 436, 
                     width: 14,
                     height: 13,
                     frameWidth: 14,
