@@ -44,7 +44,40 @@ var plant = {
         }, false);
         
         this.htmlNode.addEventListener('click', function(e) {
-            console.log('click');
+            var curX = e.clientX - curScene.htmlNode.offsetLeft;
+            var curY = e.clientY - curScene.htmlNode.offsetTop;
+
+            var x1 = curX;
+            var y1 = curY;
+            var w1 = 1;
+            var h1 = 1;
+
+            for (var i = 0; i < curScene.nodes.length; i++) {
+
+                var T = curScene.nodes[i];
+
+                var x2 = T.x;
+                var y2 = T.y;
+                var w2 = T.width;
+                var h2 = T.height;
+
+                w2 += x2;
+                w1 += x1;
+
+                if (x2 > w1 || x1 > w2) {
+                    console.log('no collision');
+                }
+
+                h2 += y2;
+                h1 += y1;
+
+                if (y2 > h1 || y1 > h2) {
+                    console.log('collision');
+                }
+
+                console.log('collision');
+            }
+
         }, false);
     },
 
@@ -231,13 +264,13 @@ plant.Scene.prototype.update = function() {
     // sort objects by zindexes
     this.nodes = plant.SortByIndexes('zindex', this.nodes);
 
-    for(var i = 0; i < this.nodes.length; i++) {
+    for (var i = 0; i < this.nodes.length; i++) {
 
         var T = this.nodes[i];
         var ctx = this.context;
         
         if (T.visible === true) {
-            switch(T.type()) {
+            switch (T.type()) {
 
                 case 'rectangle':
                     ctx.fillStyle = T.color;

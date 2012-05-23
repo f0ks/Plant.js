@@ -191,9 +191,9 @@ var example = {
                 // move enemy
                 if (!example.enemies[i].isDying) {
                     if (example.enemies[i].isGoRight) {
-                        example.enemies[i].x += 2;
+                        example.enemies[i].x += 3;
                     } else {
-                        example.enemies[i].x -= 2;
+                        example.enemies[i].x -= 3;
                     }
 
                     if (example.enemies[i].x > 300) {
@@ -213,7 +213,7 @@ var example = {
                 
                 // bullet animation
                 if (example.enemies[i].isShot) {
-                    example.bullets[i].y -= 12;
+                    example.bullets[i].y -= 16;
                     if (example.bullets[i].y < 0) {
                         example.bullets[i].isShot = false;
                     }
@@ -232,7 +232,7 @@ var example = {
 
             // drop bomb
             if(example.isSpaceHit) {
-                if (myBomb.y < 470) {
+                if (myBomb.y < 435) {
                     myBomb.y += 10;
                     example.isBombDropped = true;
                 } else {
