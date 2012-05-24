@@ -191,9 +191,9 @@ var example = {
                 // move enemy
                 if (!example.enemies[i].isDying) {
                     if (example.enemies[i].isGoRight) {
-                        example.enemies[i].x += 3;
+                        example.enemies[i].x += plant.Random(1, 3);
                     } else {
-                        example.enemies[i].x -= 3;
+                        example.enemies[i].x -= plant.Random(1, 3);
                     }
 
                     if (example.enemies[i].x > 300) {

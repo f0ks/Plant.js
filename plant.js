@@ -49,36 +49,41 @@ var plant = {
 
             var x1 = curX;
             var y1 = curY;
-            var w1 = 1;
-            var h1 = 1;
 
             for (var i = 0; i < curScene.nodes.length; i++) {
 
                 var T = curScene.nodes[i];
+                var w1 = 0 - T.x;
+                var h1 = 0 - T.y;
 
                 var x2 = T.x;
                 var y2 = T.y;
                 var w2 = T.width;
                 var h2 = T.height;
+                var isCollision = true;
 
+                console.log(T.type() + ' ' + w1 + ' ' + h1);
                 w2 += x2;
                 w1 += x1;
 
                 if (x2 > w1 || x1 > w2) {
-                    console.log('no collision');
+                    isCollision = false;
                 }
 
                 h2 += y2;
                 h1 += y1;
 
                 if (y2 > h1 || y1 > h2) {
-                    console.log('collision');
+                    isCollision = false;
                 }
 
-                console.log('collision');
-            }
+                if (isCollision) {
+                    T.onClick();
+                }
 
+            }
         }, false);
+
     },
 
     Rectangle: function(options) {
