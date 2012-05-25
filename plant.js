@@ -50,11 +50,17 @@ var plant = {
             var x1 = curX;
             var y1 = curY;
 
+            var w1;
+            var h1;
+
             for (var i = 0; i < curScene.nodes.length; i++) {
 
                 var T = curScene.nodes[i];
-                var w1 = 0 - T.x;
-                var h1 = 0 - T.y;
+                //var w1 = 0 - T.x;
+                //var h1 = 0 - T.y;
+
+                w1 = 1;
+                h1 = 1;
 
                 var x2 = T.x;
                 var y2 = T.y;
@@ -62,7 +68,6 @@ var plant = {
                 var h2 = T.height;
                 var isCollision = true;
 
-                console.log(T.type() + ' ' + w1 + ' ' + h1);
                 w2 += x2;
                 w1 += x1;
 
