@@ -146,11 +146,12 @@ var plant = {
 
         // src option required
         this.src = options.src;
+        this.node.src = options.src;
 
-        this.width = options.width || 50;
-        this.height = options.height || 50;
-        this.frameWidth = options.frameWidth || 50;
-        this.frameHeight = options.frameHeight || 50;
+        this.width = options.width || this.node.width;
+        this.height = options.height || this.node.height;
+        this.frameWidth = options.frameWidth || this.node.width;
+        this.frameHeight = options.frameHeight || this.node.height;
 
         // current x and y frames
         this.xFrame = options.xFrame || 0;
@@ -330,7 +331,6 @@ plant.Scene.prototype.update = function() {
 }
 
 plant.Scene.prototype.addChild = function(child) {
-
     if (child.type === 'sprite') {
         // attach image if sprite
         child.node.src = child.src;

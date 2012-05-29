@@ -2,12 +2,9 @@ Plant.js
 JavaScript game library
 
 TODO:
-    1. API docs
-    2. Click on object events
-    3. mouse x, y on canvas object [done]
-    4. opacity
-    5. options for text: font, size
-    6. sounds
-    7. FPS masuring
-    7. Sprites: check default values for frames and frame size
+     API docs
+     opacity
+     options for text: font, size
+     sounds
+     move private plant functions somewhere else from main 'plant' obj
 
