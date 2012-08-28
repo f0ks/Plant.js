@@ -5,7 +5,7 @@ var snake = {
     isLeftPressed : false,
     isRightPressed : false,
     isUpPressed : false,
-    isDownPressed : false
+    isDownPressed : false,
 
     onPageLoad: function() {
         // cell size: 10x10px, map: 20x20 = 200px to 200px
@@ -15,6 +15,12 @@ var snake = {
             width: 200,
             height: 200
         });
+
+        myScene.update();
+
+        var gameLoop = function(){
+        
+        }
 
     },
 
