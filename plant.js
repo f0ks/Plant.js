@@ -44,6 +44,12 @@ var plant = {
         }, false);
         
         this.htmlNode.addEventListener('click', function(e) {
+            
+            // first check if whole scene have onClick event attached
+            if (typeof(curScene.onClick) === 'function') {
+                curScene.onClick();
+            }
+
             var curX = e.clientX - curScene.htmlNode.offsetLeft;
             var curY = e.clientY - curScene.htmlNode.offsetTop;
 
