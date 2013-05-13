@@ -1,3 +1,9 @@
+/*
+
+Written by Albert Khamidullin. February 2011.
+
+*/
+
 var plant = {
 
     Scene: function(options) {
@@ -20,7 +26,7 @@ var plant = {
             this.background = 'black';
         }
         
-        // canvas id is mandatory option
+        // canvas id is a mandatory option
         this.htmlNode = document.getElementById(options.htmlNodeId);
 
         this.nodes = [];
