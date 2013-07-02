@@ -1,6 +1,6 @@
 /*
 
-Written by Albert Khamidullin. February 2011.
+Written by Albert Khamidullin
 
 */
 
