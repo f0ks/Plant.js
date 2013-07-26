@@ -7,27 +7,18 @@ Written by Albert Khamidullin
 var plant = {
 
     Scene: function(options) {
-        
-        if (options.width !== undefined) {
-            this.width = options.width;
-        } else {
-            this.width = 320;
-        }
+        var self = this;
 
-        if (options.height !== undefined) {
-            this.height = options.height;
-        } else {
-            this.height = 240;
-        }
+        options = options || {};
+        this.width = options.width || 320;
+        this.height = options.height || 320;
+        this.background = options.background || 'black';
 
-        if (options.background !== undefined) {
-            this.background = options.background;
+        if (options.htmlNodeId === undefined){
+            throw new Error('html canvas id is required');
         } else {
-            this.background = 'black';
+            this.htmlNode = document.getElementById(options.htmlNodeId);
         }
-        
-        // canvas id is a mandatory option
-        this.htmlNode = document.getElementById(options.htmlNodeId);
 
         this.nodes = [];
         this.mouseX = 0;
@@ -41,36 +32,40 @@ var plant = {
             this.context = this.htmlNode.getContext('2d');
             this.htmlNode.width = this.width;
             this.htmlNode.height = this.height;
+        } else {
+            throw new Error('Unable to get canvas context');
         }
 
-        var curScene = this;
+
+        // Update mouseX and mouseY props on mouse move on canvas
         this.htmlNode.addEventListener('mousemove', function(e) {
-            curScene.mouseX = e.clientX - curScene.htmlNode.offsetLeft;
-            curScene.mouseY = e.clientY - curScene.htmlNode.offsetTop;
+            self.mouseX = e.clientX - self.htmlNode.offsetLeft;
+            self.mouseY = e.clientY - self.htmlNode.offsetTop;
         }, false);
         
+        // Check for click on canvas itself 
+        // or on any object attached to current scene
         this.htmlNode.addEventListener('click', function(e) {
-            
-            // first check if whole scene have onClick event attached
-            if (typeof(curScene.onClick) === 'function') {
-                curScene.onClick();
+
+            // scene itself
+            if (typeof(self.onClick) === 'function') {
+                self.onClick();
             }
 
-            var curX = e.clientX - curScene.htmlNode.offsetLeft;
-            var curY = e.clientY - curScene.htmlNode.offsetTop;
+            // check for "collision" between mouse pointer and any other object
+            // on current scene
 
+            var curX = e.clientX - self.htmlNode.offsetLeft;
+            var curY = e.clientY - self.htmlNode.offsetTop;
             var x1 = curX;
             var y1 = curY;
-
             var w1;
             var h1;
 
-            for (var i = 0; i < curScene.nodes.length; i++) {
+            for (var i = 0; i < self.nodes.length; i++) {
+                var T = self.nodes[i];
 
-                var T = curScene.nodes[i];
-                //var w1 = 0 - T.x;
-                //var h1 = 0 - T.y;
-
+                // mouse pointer
                 w1 = 1;
                 h1 = 1;
 
@@ -94,10 +89,11 @@ var plant = {
                     isCollision = false;
                 }
 
+                // if it is any collision, execute onClicked function of 
+                // scene's child object clicked
                 if (isCollision) {
                     T.onClick();
                 }
-
             }
         }, false);
 
@@ -111,12 +107,8 @@ var plant = {
         this.x = options.x || 0;
         this.y = options.y || 0;
         this.zindex = options.zindex || 1;
+        this.visible = options.visible || true;
 
-        if (options.visible !== undefined) {
-            this.visible = options.visible;
-        } else {
-            this.visible = true;
-        }
 
         this.onClick = function() {
             // nop
@@ -136,12 +128,7 @@ var plant = {
         this.x = options.x || 0;
         this.y = options.y || 0;
         this.zindex = options.zindex || 1;
-
-        if (options.visible !== undefined) {
-            this.visible = options.visible;
-        } else {
-            this.visible = true;
-        }
+        this.visible = options.visible || true;
 
         this.onClick = function() {
             // nop
@@ -157,8 +144,12 @@ var plant = {
         this.node = new Image();
 
         // src option required
-        this.src = options.src;
-        this.node.src = options.src;
+        if (options.src === undefined){
+            throw new Error('resourse src is required');
+        } else {
+            this.src = options.src;
+            this.node.src = options.src;
+        }
 
         this.width = options.width || this.node.width;
         this.height = options.height || this.node.height;
@@ -173,12 +164,7 @@ var plant = {
         this.y = options.y || 0;
 
         this.zindex = options.zindex || 1;
-
-        if (options.visible !== undefined) {
-            this.visible = options.visible;
-        } else {
-            this.visible = true;
-        }
+        this.visible = options.visible || true;
 
         this.onClick = function() {
             // nop
@@ -196,15 +182,10 @@ var plant = {
         this.x = options.x || 0;
         this.y = options.y || 0;
 
-        this.text = options.text || '';
+        this.text = options.text || 'Sample text';
 
         this.zindex = options.zindex || 1;
-
-        if (options.visible !== undefined) {
-            this.visible = options.visible;
-        } else {
-            this.visible = true;
-        }
+        this.visible = options.visible || true;
 
         this.onClick = function() {
             // nop
@@ -216,7 +197,7 @@ var plant = {
     },
 
     // check for collision
-    Collision: function(obj1, obj2) {
+    isCollision: function(obj1, obj2) {
 
         var x1 = obj1.x;
         var y1 = obj1.y;
@@ -246,7 +227,7 @@ var plant = {
     },
 
     // sort objects by zindexes
-    SortByIndexes: function (prop, arr) {
+    _sortByIndexes: function (prop, arr) {
 
         prop = prop.split('.');
         var len = prop.length;
@@ -267,7 +248,6 @@ var plant = {
             }
         });
         return arr;
-
     },
 
     // random int
@@ -284,8 +264,8 @@ plant.Scene.prototype.update = function() {
     this.context.fillStyle = this.background;
     this.context.fillRect(0, 0, this.htmlNode.width, this.htmlNode.height);
 
-    // sort objects by zindexes
-    this.nodes = plant.SortByIndexes('zindex', this.nodes);
+    // sort objects by z-indexes
+    this.nodes = plant._sortByIndexes('zindex', this.nodes);
 
     for (var i = 0; i < this.nodes.length; i++) {
 

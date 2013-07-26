@@ -1,0 +1,48 @@
+
+scene.add([{}, {}, {}]) or
+scene.add({})
+
+plant.isCollision(obj, obj)
+plant.isCollision(ArrayOfObj, obj)
+plant.isCollision(obj, ArrayOfObj)
+plant.isCollision(ArrayOfObj, ArrayOfObj)
+
+
+
+///////////// BERRY ////////////////////////
+var gameloop = new Plant.Gameloop({
+    interval: "20",
+});
+
+
+// extend myPlayer with
+Berry(myPlayer).jumpy({
+  gravity: 1,
+  acceleration: 100,
+  power: 70
+});
+
+myPlayer.jump();
+myPlayer.isJumping (true|false)
+
+myPlayer.fadeOut();
+
+
+// keybinder?
+
+var myKeybinder = new Berry.Keybinder();
+myKeybinder['A'].keyDown(function(){
+  myPlayer.jump();
+});
+
+OR
+
+myKeybinder['Space'].keyDown = function(){
+  myPlayer.jump();
+});
+
+
+
+// extend whole Plant obj with Berry? (Extend constructors inside Plant)
+// or extend single instance object?
+ 

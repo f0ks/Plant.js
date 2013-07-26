@@ -9,6 +9,14 @@ var example = {
 
         var canvas = new plant.Scene({
             htmlNodeId: 'canvas',
+            width: 320,
+            height: 480  
+        });
+
+        var crystal = new plant.Sprite({
+            src: 'crystal.png',
+            x: 100,
+            y: 100
         });
 
         var cube1 = new plant.Rectangle({
@@ -38,6 +46,7 @@ var example = {
         canvas.addChild(cube1);
         canvas.addChild(cube2);
         canvas.addChild(cube3);
+        canvas.addChild(crystal);
         canvas.update();
 
         cube1.onClick = function() {
