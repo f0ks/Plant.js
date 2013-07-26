@@ -15,9 +15,16 @@ var plant = {
         this.background = options.background || 'black';
 
         if (options.htmlNodeId === undefined){
-            throw new Error('html canvas id is required');
+            throw new Error('Html canvas id required.');
         } else {
+            // canvas for scene view
             this.htmlNode = document.getElementById(options.htmlNodeId);
+
+            // additional hidden canvas for image processing
+            this.processingCanvas = document.createElement('canvas');
+            document.body.appendChild(this.processingCanvas);
+
+            //this.processingCanvas.setAttribute('id', 'processingCanvas');
         }
 
         this.nodes = [];
@@ -33,7 +40,7 @@ var plant = {
             this.htmlNode.width = this.width;
             this.htmlNode.height = this.height;
         } else {
-            throw new Error('Unable to get canvas context');
+            throw new Error('Unable to get canvas context. Probably unsupported.');
         }
 
 
@@ -166,6 +173,9 @@ var plant = {
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
 
+        this._isFadingOut = false;
+        this._fadingFrame = null;
+
         this.onClick = function() {
             // nop
         };
@@ -194,6 +204,18 @@ var plant = {
         this.type = function() {
             return 'text';
         };
+    },
+
+    GameLoop: function(options) {
+        // src option required
+        if (options.scene === undefined){
+            throw new Error('scene is required');
+        } else {
+            this.scene = options.scene;
+        }
+        // 50ms for default
+        this.interval = options.interval || 50;
+        this._isActive = false;
     },
 
     // check for collision
@@ -304,6 +326,7 @@ plant.Scene.prototype.update = function() {
                     T.node.src = T.src;
                     var sx = T.frameWidth * T.xFrame;
                     var sy = T.frameHeight * T.yFrame;
+                    /*ctx.globalAlpha = 0.5;*/
                     ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
                 break;
 
@@ -320,7 +343,22 @@ plant.Scene.prototype.update = function() {
             }
         }
     }
-}
+};
+
+
+plant.GameLoop.prototype.start = function() {
+    if (!this._isActive) {
+        this.handle = setInterval(this.code, this.interval);
+        this._isActive = true;
+    }
+};
+
+plant.GameLoop.prototype.stop = function() {
+    if (this._isActive) {
+        clearInterval(this.handle);
+        this._isActive = false;
+    }
+};
 
 plant.Scene.prototype.addChild = function(child) {
     if (child.type === 'sprite') {
@@ -329,5 +367,13 @@ plant.Scene.prototype.addChild = function(child) {
     }
 
     this.nodes.push(child);
-}
+};
 
+plant.Sprite.prototype.fadeOut = function() {
+    this._fadingFrame = 10;
+    this._isFadingOut = true;
+    
+};
+
+(function(){
+})();

@@ -6,7 +6,7 @@ var example = {
         var scene = new plant.Scene({
             htmlNodeId: 'canvas'
         });
-        
+
         var sprite = new plant.Sprite({
             src: 'sprite.png'
         });
@@ -32,7 +32,11 @@ var example = {
         scene.addChild(obst3);
         scene.addChild(sprite);
 
-        var loop = function(){
+        var myLoop = new plant.GameLoop({
+            scene: scene 
+        });
+
+        myLoop.code = function(){
             sprite.x = scene.mouseX; 
             sprite.y = scene.mouseY; 
             if (
@@ -41,11 +45,15 @@ var example = {
                 || plant.isCollision(sprite, obst3)
             ) {
                 console.log("collision"); 
+                //sprite.fadeOut();
+                myLoop.stop();
             }
             scene.update();
         };
 
-        setInterval(loop, 50);  
+        myLoop.start();
+        
+
     }
     
 };
