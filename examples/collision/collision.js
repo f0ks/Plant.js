@@ -1,11 +1,7 @@
 var example = {
     onPageLoad: function(){
 
-        document.getElementById('canvas').style.cursor = 'none';
-
-        var scene = new plant.Scene({
-            htmlNodeId: 'canvas'
-        });
+        var scene = new plant.Scene();
 
         var sprite = new plant.Sprite({
             src: 'sprite.png'

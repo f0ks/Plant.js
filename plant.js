@@ -14,18 +14,18 @@ var plant = {
         this.height = options.height || 320;
         this.background = options.background || 'black';
 
-        if (options.htmlNodeId === undefined){
-            throw new Error('Html canvas id required.');
+        // create canvas if no set existing
+        if (options.htmlNodeId === undefined) {
+            this.htmlNode = document.createElement('canvas');
+            document.body.appendChild(this.htmlNode);
         } else {
-            // canvas for scene view
             this.htmlNode = document.getElementById(options.htmlNodeId);
-
-            // additional hidden canvas for image processing
-            this.processingCanvas = document.createElement('canvas');
-            document.body.appendChild(this.processingCanvas);
-
-            //this.processingCanvas.setAttribute('id', 'processingCanvas');
         }
+
+        // additional hidden canvas for image processing
+        this.processingCanvas = document.createElement('canvas');
+        this.processingCanvas.setAttribute('id', 'processingCanvas');
+//        document.body.appendChild(this.processingCanvas);
 
         this.nodes = [];
         this.mouseX = 0;
