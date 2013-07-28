@@ -23,10 +23,7 @@ var example = {
             y: 250
         });
 
-        scene.addChild(obst1);
-        scene.addChild(obst2);
-        scene.addChild(obst3);
-        scene.addChild(sprite);
+        scene.add([obst1, obst2, obst3, sprite]);
 
         var myLoop = new plant.GameLoop({
             scene: scene 

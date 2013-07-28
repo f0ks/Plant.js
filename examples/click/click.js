@@ -42,11 +42,11 @@ var example = {
             color: 'blue'
         });
 
-        canvas.addChild(txtMouse);
-        canvas.addChild(cube1);
-        canvas.addChild(cube2);
-        canvas.addChild(cube3);
-        canvas.addChild(crystal);
+        canvas.add(txtMouse);
+        canvas.add(cube1);
+        canvas.add(cube2);
+        canvas.add(cube3);
+        canvas.add(crystal);
         canvas.update();
 
         cube1.onClick = function() {

@@ -69,7 +69,8 @@ var plant = {
             var w1;
             var h1;
 
-            for (var i = 0; i < self.nodes.length; i++) {
+            var length = self.nodes.length;
+            for (var i = 0; i < length; i++) {
                 var T = self.nodes[i];
 
                 // mouse pointer
@@ -289,7 +290,8 @@ plant.Scene.prototype.update = function() {
     // sort objects by z-indexes
     this.nodes = plant._sortByIndexes('zindex', this.nodes);
 
-    for (var i = 0; i < this.nodes.length; i++) {
+    var length = this.nodes.length;
+    for (var i = 0; i < length; i++) {
 
         var T = this.nodes[i];
         var ctx = this.context;
@@ -360,13 +362,27 @@ plant.GameLoop.prototype.stop = function() {
     }
 };
 
-plant.Scene.prototype.addChild = function(child) {
-    if (child.type === 'sprite') {
-        // attach image if sprite
-        child.node.src = child.src;
+plant.Scene.prototype.add = function(toAdd) {
+
+    // array of objects
+    if (toAdd instanceof Array) {
+        var length = toAdd.length;
+        for (var i = 0; i < length; i++) {
+            if (toAdd.type === 'sprite') {
+                // attach bitmap if sprite
+                toAdd.node.src = toAdd.src;
+            }
+            this.nodes.push(toAdd[i]);
+        }
+
+    // single object
+    } else {
+        if (toAdd.type === 'sprite') {
+            toAdd.node.src = toAdd.src;
+        }
+        this.nodes.push(toAdd);
     }
 
-    this.nodes.push(child);
 };
 
 plant.Sprite.prototype.fadeOut = function() {
