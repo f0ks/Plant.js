@@ -38,8 +38,9 @@ var example = {
                 || plant.isCollision(sprite, obst3)
             ) {
                 console.log("collision"); 
+                obst3.opacity = 0.3;
                 //sprite.fadeOut();
-                myLoop.stop();
+                //myLoop.stop();
             }
             scene.update();
         };

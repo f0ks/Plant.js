@@ -14,7 +14,7 @@ var plant = {
         this.height = options.height || 320;
         this.background = options.background || 'black';
 
-        // create canvas if no set existing
+        // create canvas if not using existing
         if (options.htmlNodeId === undefined) {
             this.htmlNode = document.createElement('canvas');
             document.body.appendChild(this.htmlNode);
@@ -25,24 +25,21 @@ var plant = {
         // additional hidden canvas for image processing
         this.processingCanvas = document.createElement('canvas');
         this.processingCanvas.setAttribute('id', 'processingCanvas');
-//        document.body.appendChild(this.processingCanvas);
+        document.body.appendChild(this.processingCanvas);
 
         this.nodes = [];
         this.mouseX = 0;
         this.mouseY = 0;
 
-        this.onClick = function() {
-            // nop
-        };
+        this.onClick = function() {};
 
         if (this.htmlNode.getContext) {
             this.context = this.htmlNode.getContext('2d');
             this.htmlNode.width = this.width;
             this.htmlNode.height = this.height;
         } else {
-            throw new Error('Unable to get canvas context. Probably unsupported.');
+            throw new Error('Unable to get canvas context.');
         }
-
 
         // Update mouseX and mouseY props on mouse move on canvas
         this.htmlNode.addEventListener('mousemove', function(e) {
@@ -149,12 +146,11 @@ var plant = {
 
     Sprite: function(options) {
 
-        this.node = new Image();
-
         // src option required
         if (options.src === undefined){
             throw new Error('resourse src is required');
         } else {
+            this.node = new Image();
             this.src = options.src;
             this.node.src = options.src;
         }
@@ -171,11 +167,21 @@ var plant = {
         this.x = options.x || 0;
         this.y = options.y || 0;
 
+        this.opacity = options.opacity || 1;
+
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
 
+        // flag for opacity change event
+        // for not to convert bitmap every gameloop cycle
+        this._isOpacityChanged = false;
+
         this._isFadingOut = false;
         this._fadingFrame = null;
+
+        // watch for opacity change
+        // because we need to convert image every time this happend
+        /*this.watch('opacity', plant._changeImageOpacity(this.node), 0.5);*/
 
         this.onClick = function() {
             // nop
@@ -220,6 +226,7 @@ var plant = {
     },
 
     // check for collision
+    // @TODO move collision check to scene method
     isCollision: function(obj1, obj2) {
 
         var x1 = obj1.x;
@@ -249,7 +256,12 @@ var plant = {
         return true;
     },
 
-    // sort objects by zindexes
+    // random int
+    Random: function (from, to) {
+        return Math.floor(Math.random() * (to - from + 1) + from);
+    },
+
+    // sort objects by z-indexes
     _sortByIndexes: function (prop, arr) {
 
         prop = prop.split('.');
@@ -273,10 +285,11 @@ var plant = {
         return arr;
     },
 
-    // random int
-    Random: function (from, to) {
-        return Math.floor(Math.random() * (to - from + 1) + from);
-    }
+    _changeImageOpacity: function (imagedata, opacity) {
+        console.log("_changeImageOpacity called " + opacity);
+        console.log(opacity);
+    },
+
         
 };
 
@@ -352,6 +365,9 @@ plant.GameLoop.prototype.start = function() {
     if (!this._isActive) {
         this.handle = setInterval(this.code, this.interval);
         this._isActive = true;
+        return true;
+    } else {
+        return false; 
     }
 };
 
@@ -359,6 +375,9 @@ plant.GameLoop.prototype.stop = function() {
     if (this._isActive) {
         clearInterval(this.handle);
         this._isActive = false;
+        return true;
+    } else {
+        return false; 
     }
 };
 
@@ -368,18 +387,18 @@ plant.Scene.prototype.add = function(toAdd) {
     if (toAdd instanceof Array) {
         var length = toAdd.length;
         for (var i = 0; i < length; i++) {
-            if (toAdd.type === 'sprite') {
-                // attach bitmap if sprite
-                toAdd.node.src = toAdd.src;
+
+            if (toAdd[i].type === 'sprite') {
+                toAdd[i].watch('opacity', function() {
+                    plant._changeImageOpacity(toAdd[i].node, toAdd[i].opacity); 
+                });
             }
+
             this.nodes.push(toAdd[i]);
         }
 
     // single object
     } else {
-        if (toAdd.type === 'sprite') {
-            toAdd.node.src = toAdd.src;
-        }
         this.nodes.push(toAdd);
     }
 
@@ -391,5 +410,43 @@ plant.Sprite.prototype.fadeOut = function() {
     
 };
 
-(function(){
+(function() {
+
+    // x-browser watch for property change
+    if (!Object.prototype.watch) {
+        Object.prototype.watch = function (prop, handler) {
+            var val = this[prop],
+            getter = function () {
+                return val;
+            },
+            setter = function (newval) {
+                return val = handler.call(this, prop, val, newval);
+            };
+            if (delete this[prop]) { // can't watch constants
+                if (Object.defineProperty) { // ECMAScript 5
+                    Object.defineProperty(this, prop, {
+                       get: getter,
+                       set: setter
+                    });
+                }
+                else if (Object.prototype.__defineGetter__ &&
+                         Object.prototype.__defineSetter__) // legacy
+                {
+                    Object.prototype.__defineGetter__.call(this, prop, getter);
+                    Object.prototype.__defineSetter__.call(this, prop, setter);
+                }
+            }
+        };
+    }
+
+    // object.unwatch
+    if (!Object.prototype.unwatch)
+    {
+        Object.prototype.unwatch = function (prop) {
+            var val = this[prop];
+            delete this[prop]; // remove accessors
+            this[prop] = val;
+        };
+    }
+
 })();
