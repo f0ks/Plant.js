@@ -168,6 +168,7 @@ var plant = {
 
     Sprite: function(options) {
 
+
         // src option required
         if (options.src === undefined){
             throw new Error('resourse src is required');
@@ -175,6 +176,12 @@ var plant = {
             this.node = new Image();
             this.src = options.src;
             this.node.src = options.src;
+
+            var self = this;
+            this.node.onload = function() {
+                self._isSrcLoaded = true; 
+                console.log("loaded");
+            }
         }
 
         this.width = options.width || this.node.width;
@@ -193,6 +200,9 @@ var plant = {
 
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
+
+        // image data loaded flag
+        this._isSrcLoaded = false;
 
         // flag for opacity change event
         // for not to convert bitmap every gameloop cycle
@@ -360,11 +370,13 @@ plant.Scene.prototype.update = function() {
                         console.log('n');
                     }
                     */
-                    T.node.src = T.src;
-                    //console.log(T.node);
+                    //T.node.src = T.src;
+                    //console.log(T.node.src);
                     var sx = T.frameWidth * T.xFrame;
                     var sy = T.frameHeight * T.yFrame;
-                    ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
+                    T.node.onload = function() {
+                        ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
+                    }
                 break;
 
                 case 'text':

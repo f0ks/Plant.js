@@ -23,7 +23,15 @@ var example = {
             y: 250
         });
 
-        scene.add([obst1, obst2, obst3, sprite]);
+        var obst4 = new plant.Rectangle({
+            width: 50,
+            height: 50,
+            color: 'green',
+            x: 100,
+            y: 100
+        });
+
+        scene.add([obst1, obst2, obst3, sprite, obst4]);
 
         var myLoop = new plant.GameLoop({
             scene: scene 
