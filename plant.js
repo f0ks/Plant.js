@@ -22,10 +22,8 @@ var plant = {
             this.htmlNode = document.getElementById(options.htmlNodeId);
         }
 
-        // additional hidden canvas for image processing
-        this.processingCanvas = document.createElement('canvas');
-        this.processingCanvas.setAttribute('id', 'processingCanvas');
-        document.body.appendChild(this.processingCanvas);
+        this._processingCanvasNode = document.createElement('canvas');
+        document.body.appendChild(this._processingCanvasNode);
 
         this.nodes = [];
         this.mouseX = 0;
@@ -47,6 +45,30 @@ var plant = {
             self.mouseY = e.clientY - self.htmlNode.offsetTop;
         }, false);
         
+        this._changeImageOpacity = function (imagenode, opacity) {
+            if (this._processingCanvasNode.getContext) {
+                this._processingCanvasCtx = this._processingCanvasNode.getContext('2d');
+
+                // set canvas' width and height to match image's size
+                this._processingCanvasNode.width = imagenode.width;
+                this._processingCanvasNode.height = imagenode.height;
+
+                // set canvas' opacity
+                this._processingCanvasCtx.globalAlpha = opacity;
+
+                // draw image
+                this._processingCanvasCtx.drawImage(imagenode, 0, 0);
+
+
+                // export base64 encoded image data
+                var imgdata = this._processingCanvasNode.toDataURL("image/png");
+
+                console.log(imgdata);
+            } else {
+                throw new Error('Unable to get canvas context');
+            }
+        };
+
         // Check for click on canvas itself 
         // or on any object attached to current scene
         this.htmlNode.addEventListener('click', function(e) {
@@ -179,9 +201,6 @@ var plant = {
         this._isFadingOut = false;
         this._fadingFrame = null;
 
-        // watch for opacity change
-        // because we need to convert image every time this happend
-        /*this.watch('opacity', plant._changeImageOpacity(this.node), 0.5);*/
 
         this.onClick = function() {
             // nop
@@ -261,8 +280,8 @@ var plant = {
         return Math.floor(Math.random() * (to - from + 1) + from);
     },
 
-    // sort objects by z-indexes
-    _sortByIndexes: function (prop, arr) {
+    // sort objects in array by key
+    _sortBy: function (prop, arr) {
 
         prop = prop.split('.');
         var len = prop.length;
@@ -285,12 +304,7 @@ var plant = {
         return arr;
     },
 
-    _changeImageOpacity: function (imagedata, opacity) {
-        console.log("_changeImageOpacity called " + opacity);
-        console.log(opacity);
-    },
 
-        
 };
 
 
@@ -300,8 +314,8 @@ plant.Scene.prototype.update = function() {
     this.context.fillStyle = this.background;
     this.context.fillRect(0, 0, this.htmlNode.width, this.htmlNode.height);
 
-    // sort objects by z-indexes
-    this.nodes = plant._sortByIndexes('zindex', this.nodes);
+    // sort plant's objects by z-indexes
+    this.nodes = plant._sortBy('zindex', this.nodes);
 
     var length = this.nodes.length;
     for (var i = 0; i < length; i++) {
@@ -338,10 +352,18 @@ plant.Scene.prototype.update = function() {
                 break;
 
                 case 'sprite':
+                    /*
+                    if (T.node.src === undefined) {
+                        T.node.src = T.src;
+                        console.log('y');
+                    } else {
+                        console.log('n');
+                    }
+                    */
                     T.node.src = T.src;
+                    //console.log(T.node);
                     var sx = T.frameWidth * T.xFrame;
                     var sy = T.frameHeight * T.yFrame;
-                    /*ctx.globalAlpha = 0.5;*/
                     ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
                 break;
 
@@ -388,17 +410,24 @@ plant.Scene.prototype.add = function(toAdd) {
         var length = toAdd.length;
         for (var i = 0; i < length; i++) {
 
-            if (toAdd[i].type === 'sprite') {
+            // process sprite if opacity has changed
+            if (toAdd[i].type() === 'sprite') {
+                var toWatch = toAdd[i];
+                var self = this;
                 toAdd[i].watch('opacity', function() {
-                    plant._changeImageOpacity(toAdd[i].node, toAdd[i].opacity); 
+                    self._changeImageOpacity(toWatch.node, 0.5); 
                 });
             }
-
             this.nodes.push(toAdd[i]);
         }
 
     // single object
     } else {
+        if (toAdd.type() === 'sprite') {
+            toAdd.watch('opacity', function() {
+                this._changeImageOpacity(toAdd.node, toAdd.opacity); 
+            });
+        }
         this.nodes.push(toAdd);
     }
 
@@ -407,7 +436,6 @@ plant.Scene.prototype.add = function(toAdd) {
 plant.Sprite.prototype.fadeOut = function() {
     this._fadingFrame = 10;
     this._isFadingOut = true;
-    
 };
 
 (function() {
