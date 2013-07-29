@@ -1,3 +1,11 @@
+### images problem
+also sequrity origin problem in chrome (now I run a web server)
+    and images problem was exposed. images keep loading over and over again 
+    from the web server. maybe I need an accurate image preload mechanism
+    with finish load callback, or image.onLoad or somthn
+
+
+
 I need an extra hidden canvas to work with opacity, image processing - rotation, etc
 
 Images preloader.
