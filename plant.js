@@ -1,7 +1,5 @@
 /*
-
 Written by Albert Khamidullin
-
 */
 
 var plant = {
@@ -46,24 +44,25 @@ var plant = {
         }, false);
         
         this._changeImageOpacity = function (imagenode, opacity) {
+            console.log("opa from converter " + opacity);
             if (this._processingCanvasNode.getContext) {
                 this._processingCanvasCtx = this._processingCanvasNode.getContext('2d');
 
-                // set canvas' width and height to match image's size
+                // set canvas width and height to match image's size
                 this._processingCanvasNode.width = imagenode.width;
                 this._processingCanvasNode.height = imagenode.height;
 
-                // set canvas' opacity
+                // set canvas opacity
                 this._processingCanvasCtx.globalAlpha = opacity;
 
                 // draw image
                 this._processingCanvasCtx.drawImage(imagenode, 0, 0);
 
-
                 // export base64 encoded image data
                 var imgdata = this._processingCanvasNode.toDataURL("image/png");
 
-                console.log(imgdata);
+                return imgdata;
+
             } else {
                 throw new Error('Unable to get canvas context');
             }
@@ -168,7 +167,6 @@ var plant = {
 
     Sprite: function(options) {
 
-
         // src option required
         if (options.src === undefined){
             throw new Error('resourse src is required');
@@ -176,13 +174,8 @@ var plant = {
             this.node = new Image();
             this.src = options.src;
             this.node.src = options.src;
-
-            var self = this;
-            this.node.onload = function() {
-                self._isSrcLoaded = true; 
-                console.log("loaded");
-            }
         }
+
 
         this.width = options.width || this.node.width;
         this.height = options.height || this.node.height;
@@ -196,13 +189,11 @@ var plant = {
         this.x = options.x || 0;
         this.y = options.y || 0;
 
-        this.opacity = options.opacity || 1;
+        this.opacity = options.opacity || 1.0;
 
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
 
-        // image data loaded flag
-        this._isSrcLoaded = false;
 
         // flag for opacity change event
         // for not to convert bitmap every gameloop cycle
@@ -219,6 +210,7 @@ var plant = {
         this.type = function() {
             return 'sprite';
         };
+
     },
 
     Text: function(options) {
@@ -362,21 +354,15 @@ plant.Scene.prototype.update = function() {
                 break;
 
                 case 'sprite':
-                    /*
-                    if (T.node.src === undefined) {
-                        T.node.src = T.src;
-                        console.log('y');
-                    } else {
-                        console.log('n');
-                    }
-                    */
                     //T.node.src = T.src;
                     //console.log(T.node.src);
+
                     var sx = T.frameWidth * T.xFrame;
                     var sy = T.frameHeight * T.yFrame;
-                    T.node.onload = function() {
-                        ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
-                    }
+
+
+                    ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
+
                 break;
 
                 case 'text':
@@ -427,7 +413,11 @@ plant.Scene.prototype.add = function(toAdd) {
                 var toWatch = toAdd[i];
                 var self = this;
                 toAdd[i].watch('opacity', function() {
-                    self._changeImageOpacity(toWatch.node, 0.5); 
+                    //console.log(this);
+                    //console.log(this.opacity);
+                    //self._changeImageOpacity(toWatch.node, toWatch.opacity); 
+                    //console.log(self._changeImageOpacity(this.node, this.opacity));
+                    this.node.src = self._changeImageOpacity(this.node, this.opacity);
                 });
             }
             this.nodes.push(toAdd[i]);
@@ -451,6 +441,14 @@ plant.Sprite.prototype.fadeOut = function() {
 };
 
 (function() {
+
+    window.onload = function() {
+
+        // create container for resources preloading
+        var resContainer = document.createElement('div');
+        document.body.appendChild(resContainer);
+        resContainer.setAttribute('id', 'plantResContainer');
+    }
 
     // x-browser watch for property change
     if (!Object.prototype.watch) {
