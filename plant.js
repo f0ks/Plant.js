@@ -50,7 +50,6 @@ var plant = {
         }, false);
         
         this._changeImageOpacity = function (imagenode, opacity) {
-            console.log("opa from converter " + opacity);
             if (this._processingCanvasNode.getContext) {
                 this._processingCanvasCtx = this._processingCanvasNode.getContext('2d');
 
@@ -196,8 +195,9 @@ var plant = {
         this.y = options.y || 0;
 
         this.opacity = options.opacity || 1;
+
         // for watching opacity change
-        this._opacityCache = options.opacity || 1;
+        this._opacityCache = 1;
 
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
@@ -206,9 +206,7 @@ var plant = {
         this._fadingFrame = null;
 
 
-        this.onClick = function() {
-            // nop
-        };
+        this.onClick = function() {};
         
         this.type = function() {
             return 'sprite';
@@ -284,7 +282,7 @@ var plant = {
         return Math.floor(Math.random() * (to - from + 1) + from);
     },
 
-    // sort objects in array by key
+    // sort array's objects by key
     _sortBy: function (prop, arr) {
 
         prop = prop.split('.');
@@ -318,7 +316,7 @@ plant.Scene.prototype.update = function() {
     this.context.fillStyle = this.background;
     this.context.fillRect(0, 0, this.htmlNode.width, this.htmlNode.height);
 
-    // sort plant's objects by z-indexes
+    // sort scene's objects by z-indexes
     this.nodes = plant._sortBy('zindex', this.nodes);
 
     var length = this.nodes.length;
@@ -356,21 +354,19 @@ plant.Scene.prototype.update = function() {
                 break;
 
                 case 'sprite':
-                    //T.node.src = T.src;
-                    //console.log(T.node.src);
-                    
-                    // check for opacity change
-
-                    var sx = T.frameWidth * T.xFrame;
-                    var sy = T.frameHeight * T.yFrame;
-
-                    ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
 
                     // if opacity has changed, convert image
                     if (T.opacity !== T._opacityCache) {
                         T.node.src = this._changeImageOpacity(T.node, T.opacity);
                         T._opacityCache = T.opacity;
                     }
+
+                    // find out what area of sprite we should draw
+                    var sx = T.frameWidth * T.xFrame;
+                    var sy = T.frameHeight * T.yFrame;
+
+                    // draw sprite
+                    ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
 
                 break;
 
@@ -416,19 +412,11 @@ plant.Scene.prototype.add = function(toAdd) {
     if (toAdd instanceof Array) {
         var length = toAdd.length;
         for (var i = 0; i < length; i++) {
-            // if opacity isn't 1, convert image
-            if (toAdd[i].type() === 'sprite' && toAdd[i].opacity !== 1) {
-                toAdd[i].node.src = this._changeImageOpacity(toAdd[i].node, toAdd[i].opacity);
-            }
             this.nodes.push(toAdd[i]);
         }
 
     // single object
     } else {
-        // if opacity isn't 1, convert image
-        if (toAdd.type() === 'sprite' && toAdd.opacity !== 1) {
-            toAdd.node.src = this._changeImageOpacity(toAdd.node, toAdd.opacity);
-        }
         this.nodes.push(toAdd);
     }
 

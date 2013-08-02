@@ -3,21 +3,21 @@ function onPageLoad() {
         var scene = new plant.Scene();
 
         var player = new plant.Sprite({
-            src: 'megaman.png'
+            src: 'megaman.png',
+            x: 300,
+            y: 300
         });
 
         var dragon = new plant.Sprite({
             src: 'dragon.png',
             x: 100,
             y: 50,
-            opacity: 0.25 
         });
 
         var crystal = new plant.Sprite({
             src: 'crystal.png',
             x: 200,
             y: 200,
-            opacity: 0.5 
         });
 
         var pikachu = new plant.Sprite({
@@ -36,16 +36,14 @@ function onPageLoad() {
         myLoop.code = function() {
             player.x = scene.mouseX; 
             player.y = scene.mouseY; 
-            if (
-                plant.isCollision(player, pikachu)
-                //|| plant.isCollision(sprite, obst2)
-                //|| plant.isCollision(sprite, obst3)
-            ) {
-                pikachu.opacity = 0.7;
-                console.log(pikachu.opacity);
-                //obst2.opacity = 0.3;
-                //sprite.fadeOut();
-                //myLoop.stop();
+            if (plant.isCollision(player, pikachu)) {
+                pikachu.opacity = 0.25;
+            }
+            if (plant.isCollision(player, dragon)) {
+                dragon.opacity = 0.25;
+            }
+            if (plant.isCollision(player, crystal)) {
+                crystal.opacity = 0.25;
             }
             scene.update();
         };
