@@ -1,4 +1,6 @@
 
+### new branch opacity-alt
+i'm going to implement opacity feature without watch listener (create my own)
 
 I need an extra hidden canvas to work with opacity, image processing - rotation, etc
 
