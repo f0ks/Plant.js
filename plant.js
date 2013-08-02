@@ -5,7 +5,6 @@ Written by Albert Khamidullin
 var plant = {
 
     Scene: function(options) {
-        var self = this;
 
         options = options || {};
         this.width = options.width || 320;
@@ -20,10 +19,15 @@ var plant = {
             this.htmlNode = document.getElementById(options.htmlNodeId);
         }
 
+        // create additional hidden canvas for image processing
         this._processingCanvasNode = document.createElement('canvas');
+        this._processingCanvasNode.style.display = 'none';
         document.body.appendChild(this._processingCanvasNode);
 
+        // all the scene's objects goes here
         this.nodes = [];
+
+        // mouse position on scene
         this.mouseX = 0;
         this.mouseY = 0;
 
@@ -36,6 +40,8 @@ var plant = {
         } else {
             throw new Error('Unable to get canvas context.');
         }
+
+        var self = this;
 
         // Update mouseX and mouseY props on mouse move on canvas
         this.htmlNode.addEventListener('mousemove', function(e) {
@@ -189,15 +195,12 @@ var plant = {
         this.x = options.x || 0;
         this.y = options.y || 0;
 
-        this.opacity = options.opacity || 1.0;
+        this.opacity = options.opacity || 1;
+        // for watching opacity change
+        this._opacityCache = options.opacity || 1;
 
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
-
-
-        // flag for opacity change event
-        // for not to convert bitmap every gameloop cycle
-        this._isOpacityChanged = false;
 
         this._isFadingOut = false;
         this._fadingFrame = null;
@@ -241,8 +244,7 @@ var plant = {
         } else {
             this.scene = options.scene;
         }
-        // 50ms for default
-        this.interval = options.interval || 50;
+        this.interval = options.interval || 50; // 50ms default
         this._isActive = false;
     },
 
@@ -356,12 +358,19 @@ plant.Scene.prototype.update = function() {
                 case 'sprite':
                     //T.node.src = T.src;
                     //console.log(T.node.src);
+                    
+                    // check for opacity change
 
                     var sx = T.frameWidth * T.xFrame;
                     var sy = T.frameHeight * T.yFrame;
 
-
                     ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
+
+                    // if opacity has changed, convert image
+                    if (T.opacity !== T._opacityCache) {
+                        T.node.src = this._changeImageOpacity(T.node, T.opacity);
+                        T._opacityCache = T.opacity;
+                    }
 
                 break;
 
@@ -407,28 +416,18 @@ plant.Scene.prototype.add = function(toAdd) {
     if (toAdd instanceof Array) {
         var length = toAdd.length;
         for (var i = 0; i < length; i++) {
-
-            // process sprite if opacity has changed
-            if (toAdd[i].type() === 'sprite') {
-                var toWatch = toAdd[i];
-                var self = this;
-                toAdd[i].watch('opacity', function() {
-                    //console.log(this);
-                    //console.log(this.opacity);
-                    //self._changeImageOpacity(toWatch.node, toWatch.opacity); 
-                    //console.log(self._changeImageOpacity(this.node, this.opacity));
-                    this.node.src = self._changeImageOpacity(this.node, this.opacity);
-                });
+            // if opacity isn't 1, convert image
+            if (toAdd[i].type() === 'sprite' && toAdd[i].opacity !== 1) {
+                toAdd[i].node.src = this._changeImageOpacity(toAdd[i].node, toAdd[i].opacity);
             }
             this.nodes.push(toAdd[i]);
         }
 
     // single object
     } else {
-        if (toAdd.type() === 'sprite') {
-            toAdd.watch('opacity', function() {
-                this._changeImageOpacity(toAdd.node, toAdd.opacity); 
-            });
+        // if opacity isn't 1, convert image
+        if (toAdd.type() === 'sprite' && toAdd.opacity !== 1) {
+            toAdd.node.src = this._changeImageOpacity(toAdd.node, toAdd.opacity);
         }
         this.nodes.push(toAdd);
     }
@@ -439,52 +438,3 @@ plant.Sprite.prototype.fadeOut = function() {
     this._fadingFrame = 10;
     this._isFadingOut = true;
 };
-
-(function() {
-
-    window.onload = function() {
-
-        // create container for resources preloading
-        var resContainer = document.createElement('div');
-        document.body.appendChild(resContainer);
-        resContainer.setAttribute('id', 'plantResContainer');
-    }
-
-    // x-browser watch for property change
-    if (!Object.prototype.watch) {
-        Object.prototype.watch = function (prop, handler) {
-            var val = this[prop],
-            getter = function () {
-                return val;
-            },
-            setter = function (newval) {
-                return val = handler.call(this, prop, val, newval);
-            };
-            if (delete this[prop]) { // can't watch constants
-                if (Object.defineProperty) { // ECMAScript 5
-                    Object.defineProperty(this, prop, {
-                       get: getter,
-                       set: setter
-                    });
-                }
-                else if (Object.prototype.__defineGetter__ &&
-                         Object.prototype.__defineSetter__) // legacy
-                {
-                    Object.prototype.__defineGetter__.call(this, prop, getter);
-                    Object.prototype.__defineSetter__.call(this, prop, setter);
-                }
-            }
-        };
-    }
-
-    // object.unwatch
-    if (!Object.prototype.unwatch)
-    {
-        Object.prototype.unwatch = function (prop) {
-            var val = this[prop];
-            delete this[prop]; // remove accessors
-            this[prop] = val;
-        };
-    }
-
-})();
