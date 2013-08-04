@@ -7,11 +7,11 @@ var plant = {
     Scene: function(options) {
 
         options = options || {};
-        this.width = options.width || 320;
-        this.height = options.height || 320;
+        this.width = options.width || 640;
+        this.height = options.height || 480;
         this.background = options.background || 'black';
 
-        // create canvas if not using existing
+        // create canvas if not specified existing
         if (options.htmlNodeId === undefined) {
             this.htmlNode = document.createElement('canvas');
             document.body.appendChild(this.htmlNode);
@@ -24,14 +24,15 @@ var plant = {
         this._processingCanvasNode.style.display = 'none';
         document.body.appendChild(this._processingCanvasNode);
 
-        // all the scene's objects goes here
+        // all scene's objects goes here
         this.nodes = [];
 
         // mouse position on scene
         this.mouseX = 0;
         this.mouseY = 0;
 
-        this.onClick = function() {};
+        // function expected
+        this.onClick = null;
 
         if (this.htmlNode.getContext) {
             this.context = this.htmlNode.getContext('2d');
@@ -43,7 +44,7 @@ var plant = {
 
         var self = this;
 
-        // Update mouseX and mouseY props on mouse move on canvas
+        // update mouse position on scene
         this.htmlNode.addEventListener('mousemove', function(e) {
             self.mouseX = e.clientX - self.htmlNode.offsetLeft;
             self.mouseY = e.clientY - self.htmlNode.offsetTop;
@@ -78,6 +79,7 @@ var plant = {
         this.htmlNode.addEventListener('click', function(e) {
 
             // scene itself
+            // if function set to onClick call it
             if (typeof(self.onClick) === 'function') {
                 self.onClick();
             }
@@ -140,10 +142,8 @@ var plant = {
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
 
-
-        this.onClick = function() {
-            // nop
-        };
+        // function expected
+        this.onClick = null;
 
         this.type = function() {
             return 'rectangle';
@@ -161,9 +161,7 @@ var plant = {
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
 
-        this.onClick = function() {
-            // nop
-        };
+        this.onClick = null;
 
         this.type = function() {
             return 'ellipse';
@@ -205,8 +203,7 @@ var plant = {
         this._isFadingOut = false;
         this._fadingFrame = null;
 
-
-        this.onClick = function() {};
+        this.onClick = null;
         
         this.type = function() {
             return 'sprite';
