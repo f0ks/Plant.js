@@ -7,8 +7,8 @@ var plant = {
     Scene: function(options) {
 
         options = options || {};
-        this.width = options.width || 640;
-        this.height = options.height || 480;
+        this.width = options.width || 320;
+        this.height = options.height || 320;
         this.background = options.background || 'black';
 
         // create canvas if not specified existing

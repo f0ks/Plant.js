@@ -8,7 +8,7 @@ var multicanv = {
             x: 5,
             y: 5,
         });
-        canv1.addChild(text1);
+        canv1.add(text1);
 
         var canv2 = new plant.Scene({
             htmlNodeId: 'canvas2',
@@ -17,7 +17,7 @@ var multicanv = {
             x: 5,
             y: 5,
         });
-        canv2.addChild(text2);
+        canv2.add(text2);
 
         var canv3 = new plant.Scene({
             htmlNodeId: 'canvas3',
@@ -26,7 +26,7 @@ var multicanv = {
             x: 5,
             y: 5,
         });
-        canv3.addChild(text3);
+        canv3.add(text3);
 
         var canv4 = new plant.Scene({
             htmlNodeId: 'canvas4',
@@ -35,7 +35,7 @@ var multicanv = {
             x: 5,
             y: 5,
         });
-        canv4.addChild(text4);
+        canv4.add(text4);
 
         var loop = function() {
             text1.text = canv1.mouseX + ' ' + canv1.mouseY;

@@ -1,11 +1,13 @@
 ### opacity
 add opacity property to all primitives
 
+### click on primitives or sprite
+add options for all layers (z-indexes)
+
 ### sprite effects for game loop
 fadeOut(frames, callback);
 fadeIn?
 turn(angle, frames, callback) or -angle
-
 moveTo(x, y, frames, callback)
 moveLeft moveRight moveUp moveBottom
 
@@ -22,12 +24,19 @@ plant.isCollision(one, two, once:true|false)
 add boolean option to isCollision, fire colision event once or continue
 ##########
 
+### keybinder?
 
-///////////// BERRY ////////////////////////
-var gameloop = new Plant.Gameloop({
-    interval: "20",
+var myKeybinder = new plant.Keybinder();
+myKeybinder['A'].keyDown(function(){
+  myPlayer.jump();
 });
 
+OR
+myKeybinder['Space'].keyDown = function(){
+  myPlayer.jump();
+});
+
+///////////// BERRY ////////////////////////
 
 // extend myPlayer with
 Berry(myPlayer).jumpy({
@@ -38,24 +47,6 @@ Berry(myPlayer).jumpy({
 
 myPlayer.jump();
 myPlayer.isJumping (true|false)
-
-myPlayer.fadeOut();
-
-
-// keybinder?
-
-var myKeybinder = new Berry.Keybinder();
-myKeybinder['A'].keyDown(function(){
-  myPlayer.jump();
-});
-
-OR
-
-myKeybinder['Space'].keyDown = function(){
-  myPlayer.jump();
-});
-
-
 
 // extend whole Plant obj with Berry? (Extend constructors inside Plant)
 // or extend single instance object?
