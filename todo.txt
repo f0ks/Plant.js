@@ -1,11 +1,19 @@
+### opacity
+add opacity property to all primitives
 
-### new branch opacity-alt
-i'm going to implement opacity feature without watch listener (create my own)
+### sprite effects for game loop
+fadeOut(frames, callback);
+fadeIn?
+turn(angle, frames, callback) or -angle
 
-I need an extra hidden canvas to work with opacity, image processing - rotation, etc
+moveTo(x, y, frames, callback)
+moveLeft moveRight moveUp moveBottom
 
+also, add angle property to all objects
+
+### improve collision check
 plant.isCollision(obj, obj)
-plant.isCollision(ArrayOfObj, obj)
+plant.isCollision(ArrayOfObj, obj) ??
 plant.isCollision(obj, ArrayOfObj)
 plant.isCollision(ArrayOfObj, ArrayOfObj)
 
