@@ -2,6 +2,8 @@
 Written by Albert Khamidullin
 */
 
+"use strict";
+
 var plant = {
 
     Scene: function(options) {
@@ -122,9 +124,9 @@ var plant = {
                     isCollision = false;
                 }
 
-                // if it is any collision, execute onClicked function of 
-                // scene's child object clicked
-                if (isCollision) {
+                // if there is any collision, execute onClick function of 
+                // scene's child object clicked, if it defined (not null)
+                if (isCollision && T.onClick !== null) {
                     T.onClick();
                 }
             }
@@ -144,11 +146,6 @@ var plant = {
 
         // function expected
         this.onClick = null;
-
-        this.type = function() {
-            return 'rectangle';
-        };
-
     },
 
     Ellipse: function(options) {
@@ -162,10 +159,6 @@ var plant = {
         this.visible = options.visible || true;
 
         this.onClick = null;
-
-        this.type = function() {
-            return 'ellipse';
-        };
     },
 
     Sprite: function(options) {
@@ -194,7 +187,7 @@ var plant = {
 
         this.opacity = options.opacity || 1;
 
-        // for watching opacity change
+        // save previous opacity value, watch for a change
         this._opacityCache = 1;
 
         this.zindex = options.zindex || 1;
@@ -204,10 +197,6 @@ var plant = {
         this._fadingFrame = null;
 
         this.onClick = null;
-        
-        this.type = function() {
-            return 'sprite';
-        };
 
     },
 
@@ -226,25 +215,24 @@ var plant = {
         this.onClick = function() {
             // nop
         };
-
-        this.type = function() {
-            return 'text';
-        };
     },
 
     GameLoop: function(options) {
-        // src option required
+
+        // scene is required
         if (options.scene === undefined){
             throw new Error('scene is required');
         } else {
             this.scene = options.scene;
         }
-        this.interval = options.interval || 50; // 50ms default
+
+        // 50ms default
+        this.interval = options.interval || 50;
         this._isActive = false;
     },
 
     // check for collision
-    // @TODO move collision check to scene method
+    // @TODO move collision check to scene method?
     isCollision: function(obj1, obj2) {
 
         var x1 = obj1.x;
@@ -306,6 +294,21 @@ var plant = {
 
 };
 
+plant.Scene.prototype.add = function(toAdd) {
+
+    // array of objects
+    if (toAdd instanceof Array) {
+        var length = toAdd.length;
+        for (var i = 0; i < length; i++) {
+            this.nodes.push(toAdd[i]);
+        }
+
+    // single object
+    } else {
+        this.nodes.push(toAdd);
+    }
+
+};
 
 plant.Scene.prototype.update = function() {
 
@@ -322,12 +325,19 @@ plant.Scene.prototype.update = function() {
         var T = this.nodes[i];
         var ctx = this.context;
         
+        // don't render invisible objects
         if (T.visible === true) {
             switch (T.type()) {
 
                 case 'rectangle':
+                /*
+                    if (T.opacity !== 1) {
+                       ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; 
+                    }
+                */
                     ctx.fillStyle = T.color;
                     ctx.fillRect(T.x, T.y, T.width, T.height);
+                
                 break;
 
                 case 'ellipse':
@@ -382,6 +392,26 @@ plant.Scene.prototype.update = function() {
     }
 };
 
+plant.Rectangle.prototype.type = function() {
+    return 'rectangle';
+};
+
+plant.Ellipse.prototype.type = function() {
+    return 'ellipse';
+};
+
+plant.Sprite.prototype.type = function() {
+    return 'sprite';
+};
+
+plant.Sprite.prototype.fadeOut = function() {
+    this._fadingFrame = 10;
+    this._isFadingOut = true;
+};
+
+plant.Text.prototype.type = function() {
+    return 'text';
+};
 
 plant.GameLoop.prototype.start = function() {
     if (!this._isActive) {
@@ -403,23 +433,4 @@ plant.GameLoop.prototype.stop = function() {
     }
 };
 
-plant.Scene.prototype.add = function(toAdd) {
 
-    // array of objects
-    if (toAdd instanceof Array) {
-        var length = toAdd.length;
-        for (var i = 0; i < length; i++) {
-            this.nodes.push(toAdd[i]);
-        }
-
-    // single object
-    } else {
-        this.nodes.push(toAdd);
-    }
-
-};
-
-plant.Sprite.prototype.fadeOut = function() {
-    this._fadingFrame = 10;
-    this._isFadingOut = true;
-};
