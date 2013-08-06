@@ -11,6 +11,9 @@ turn(angle, frames, callback) or -angle
 moveTo(x, y, frames, callback)
 moveLeft moveRight moveUp moveBottom
 
+_isBusy === true when animate or moving
+.stop() to stop moving or animate
+
 also, add angle property to all objects
 
 ### improve collision check
