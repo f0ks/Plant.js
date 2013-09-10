@@ -1,8 +1,6 @@
 /*
-Written by Albert Khamidullin
+    Written by Albert Khamidullin
 */
-
-"use strict";
 
 var plant = {
 
@@ -384,9 +382,6 @@ plant.Scene.prototype.update = function() {
                     ctx.fillText(T.text, T.x, T.y);
                 break;
 
-                default:
-                    /* nop */
-                break;
             }
         }
     }

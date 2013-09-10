@@ -11,6 +11,8 @@ turn(angle, frames, callback) or -angle
 moveTo(x, y, frames, callback)
 moveLeft moveRight moveUp moveBottom
 
+maybe also make it chainable: moveTo().fadeOut().fadeIn()
+
 _isBusy === true when animate or moving
 .stop() to stop moving or animate
 
