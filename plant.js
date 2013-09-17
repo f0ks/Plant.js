@@ -142,6 +142,8 @@ var plant = {
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
 
+        this.angle = options.angle || 0;
+
         // function expected
         this.onClick = null;
     },
@@ -333,9 +335,16 @@ plant.Scene.prototype.update = function() {
                        ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; 
                     }
                 */
+
                     ctx.fillStyle = T.color;
+
+                    // if comment - interesting rotating effect discovered
+                    ctx.save();
+                    ctx.rotate(T.angle / 100);
                     ctx.fillRect(T.x, T.y, T.width, T.height);
-                
+                    ctx.restore();
+
+            
                 break;
 
                 case 'ellipse':

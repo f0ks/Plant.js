@@ -26,6 +26,9 @@ function onPageLoad() {
             y: 220,
         });
 
+        var rect = new plant.Rectangle({color: "green", angle: 30, x: 200, y: 120});
+        scene.add(rect);
+
         scene.add([dragon, crystal, pikachu, player]);
 
         var myLoop = new plant.GameLoop({
