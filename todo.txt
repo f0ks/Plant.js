@@ -1,58 +1,41 @@
-### opacity
-add opacity property to all primitives
 
-### click on primitives or sprite
-add options for all layers (z-indexes)
+    -add opacity property to all primitives
 
-### sprite effects for game loop
-fadeOut(frames, callback);
-fadeIn?
-turn(angle, frames, callback) or -angle
-moveTo(x, y, frames, callback)
-moveLeft moveRight moveUp moveBottom
+    -test and add tap event
 
-maybe also make it chainable: moveTo().fadeOut().fadeIn()
+    -retina displays suppor (sprites)
 
-_isBusy === true when animate or moving
-.stop() to stop moving or animate
+    -click on primitives or sprite: add z-index options for all layers
 
-also, add angle property to all objects
+    -sprite effects for game loop:
+        fadeOut(frames, callback);
+        fadeIn
+        turn(angle, frames, callback) or -angle
+        moveTo(x, y, frames, callback)
+        moveLeft moveRight moveUp moveBottom
 
-### improve collision check
-plant.isCollision(obj, obj)
-plant.isCollision(ArrayOfObj, obj) ??
-plant.isCollision(obj, ArrayOfObj)
-plant.isCollision(ArrayOfObj, ArrayOfObj)
+        maybe also make it chainable: moveTo().fadeOut().fadeIn()
 
-### research
-plant.isCollision(one, two, once:true|false)
-add boolean option to isCollision, fire colision event once or continue
-##########
+        _isBusy === true when animate or moving
+        .stop() to stop moving or animate
 
-### keybinder?
+        also, add angle property to all objects
 
-var myKeybinder = new plant.Keybinder();
-myKeybinder['A'].keyDown(function(){
-  myPlayer.jump();
-});
+    -move collision check to scene's method, improve collision check:
+        plant.isCollision(obj, obj)
+        plant.isCollision(ArrayOfObj, obj) ??
+        plant.isCollision(obj, ArrayOfObj)
+        plant.isCollision(ArrayOfObj, ArrayOfObj)
 
-OR
-myKeybinder['Space'].keyDown = function(){
-  myPlayer.jump();
-});
 
-///////////// BERRY ////////////////////////
+    -keybinder:
+        var myKeybinder = new plant.Keybinder();
+        myKeybinder['A'].keyDown(function(){
+          myPlayer.jump();
+        });
 
-// extend myPlayer with
-Berry(myPlayer).jumpy({
-  gravity: 1,
-  acceleration: 100,
-  power: 70
-});
+        OR
+        myKeybinder['Space'].keyDown = function(){
+          myPlayer.jump();
+        });
 
-myPlayer.jump();
-myPlayer.isJumping (true|false)
-
-// extend whole Plant obj with Berry? (Extend constructors inside Plant)
-// or extend single instance object?
- 

@@ -24,6 +24,7 @@ var example = {
             y: 120,
             width: 30,
             height: 30,
+            opacity: 0.5
         });
 
         var cube2 = new plant.Rectangle({
