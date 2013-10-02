@@ -4,7 +4,7 @@ var example = {
         var txtMouse = new plant.Text({
             x: 3,
             y: 3,
-            color: 'white'
+            color: '#cef'
         });
 
         var canvas = new plant.Scene({
@@ -24,7 +24,8 @@ var example = {
             y: 120,
             width: 30,
             height: 30,
-            opacity: 0.5
+            opacity: 0.5,
+            color: "#00ff00"
         });
 
         var cube2 = new plant.Rectangle({
@@ -32,7 +33,8 @@ var example = {
             y: 10,
             width: 60,
             height: 40,
-            color: 'green'
+            opacity: 0.5,
+            color: '#ff77aa'
         });
 
         var cube3 = new plant.Rectangle({
@@ -40,7 +42,8 @@ var example = {
             y: 30,
             width: 50,
             height: 60,
-            color: 'blue'
+            opacity: 0.5,
+            color: '#cceeff'
         });
 
         canvas.add(txtMouse);
@@ -56,12 +59,12 @@ var example = {
         };
 
         cube2.onClick = function() {
-            cube2.color = 'red';
+            cube2.color = '#66ffbb';
             canvas.update();
         };
 
         cube3.onClick = function() {
-            cube3.color = 'yellow';
+            cube3.color = '#22ff55';
             canvas.update();
         };
 
