@@ -1,4 +1,5 @@
 
+    -fix rotation (do conversion on processing canvas)
     -add opacity property to all primitives
 
     -test and add tap event

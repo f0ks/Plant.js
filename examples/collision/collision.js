@@ -18,6 +18,7 @@ function onPageLoad() {
             src: 'crystal.png',
             x: 200,
             y: 200,
+            angle: 30
         });
 
         var pikachu = new plant.Sprite({
@@ -26,8 +27,11 @@ function onPageLoad() {
             y: 220,
         });
 
-        var rect = new plant.Rectangle({color: "green", angle: 30, x: 200, y: 120});
+        var rect = new plant.Rectangle({color: "#22aa44", angle: 45, x: 200, y: 120});
         scene.add(rect);
+
+        var el = new plant.Ellipse({color: "#ccee22", opacity: 0.6, angle: 0, x: 10, y:10, width: 30, height: 60});
+        scene.add(el);
 
         scene.add([dragon, crystal, pikachu, player]);
 
