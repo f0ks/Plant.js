@@ -4,6 +4,8 @@
 
     -test and add tap event
 
+    -container object?
+
     -retina displays suppor (sprites)
 
     -click on primitives or sprite: add z-index options for all layers
