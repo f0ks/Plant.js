@@ -74,6 +74,34 @@ var plant = {
             }
         };
 
+        this._changeImageAngle = function (imagenode, angle) {
+            if (this._processingCanvasNode.getContext) {
+                this._processingCanvasCtx = this._processingCanvasNode.getContext('2d');
+
+                // set canvas width and height 
+                // @TODO maybe calculate boundary rectangle precisely but alot of fucking math...
+                this._processingCanvasNode.width = imagenode.width + imagenode.height;
+                this._processingCanvasNode.height = imagenode.height + imagenode.width;
+
+
+                this._processingCanvasCtx.save();
+
+                this._processingCanvasCtx.rotate(angle * (Math.PI / 180));
+
+                // draw image
+                this._processingCanvasCtx.drawImage(imagenode, 0, 0);
+                this._processingCanvasCtx.restore();
+
+                // export base64 encoded image data
+                var imgdata = this._processingCanvasNode.toDataURL("image/png");
+
+                return imgdata;
+
+            } else {
+                throw new Error('Unable to get canvas context');
+            }
+        };
+
         // Check for click on canvas itself 
         // or on any object attached to current scene
         this.htmlNode.addEventListener('click', function(e) {
@@ -198,8 +226,9 @@ var plant = {
 
         this.opacity = options.opacity || 1;
 
-        // save previous opacity value, watch for a change
+        // save previous opacity and angle values, watch for a change
         this._opacityCache = 1;
+        this._angleCache = 0;
 
         this.zindex = options.zindex || 1;
         this.visible = options.visible || true;
@@ -354,7 +383,7 @@ plant.Scene.prototype.update = function() {
         var ctx = this.context;
         
         // don't render invisible objects
-        if (T.visible === true) {
+        if (T.visible) {
             switch (T.type()) {
 
                 case 'rectangle':
@@ -373,10 +402,10 @@ plant.Scene.prototype.update = function() {
                         throw new Error('invalid opacity value');
                     }
 
-                    ctx.save();
-                    ctx.rotate(T.angle * (Math.PI / 180));
+                    //ctx.save();
+                    //ctx.rotate(T.angle * (Math.PI / 180));
                     ctx.fillRect(T.x, T.y, T.width, T.height);
-                    ctx.restore();
+                    //ctx.restore();
 
             
                 break;
@@ -404,8 +433,8 @@ plant.Scene.prototype.update = function() {
                     var xm = T.x + T.width / 2;
                     var ym = T.y + T.height / 2;
 
-                    ctx.save();
-                    ctx.rotate(T.angle * (Math.PI / 180));
+                    //ctx.save();
+                    //ctx.rotate(T.angle * (Math.PI / 180));
                     ctx.beginPath();
                     ctx.moveTo(T.x, ym);
                     ctx.bezierCurveTo(T.x, ym - oy, xm - ox, T.y, xm, T.y);
@@ -414,7 +443,7 @@ plant.Scene.prototype.update = function() {
                     ctx.bezierCurveTo(xm - ox, ye, T.x, ym + oy, T.x, ym);
                     ctx.closePath();
                     ctx.fill();
-                    ctx.restore();
+                    //ctx.restore();
                 break;
 
                 case 'sprite':
@@ -425,16 +454,24 @@ plant.Scene.prototype.update = function() {
                         T._opacityCache = T.opacity;
                     }
 
+                    // if angle has changed, convert image
+                    if (T.angle !== T._angleCache) {
+                        T.node.src = this._changeImageAngle(T.node, T.angle);
+                        T._angleCache = T.angle;
+                    }
+
                     // find out what area of sprite we should draw
                     var sx = T.frameWidth * T.xFrame;
                     var sy = T.frameHeight * T.yFrame;
 
-                    ctx.save();
+                    //ctx.save();
                     console.log(T.angle);
-                    ctx.rotate(T.angle * (Math.PI / 180));
-                    // draw sprite
+
+                    //ctx.rotate(T.angle * (Math.PI / 180));
+
                     ctx.drawImage(T.node, sx, sy, T.frameWidth, T.frameHeight, T.x, T.y, T.width, T.height);
-                    ctx.restore();
+
+                    //ctx.restore();
 
                 break;
 

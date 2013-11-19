@@ -18,7 +18,7 @@ function onPageLoad() {
             src: 'crystal.png',
             x: 200,
             y: 200,
-            angle: 30
+            angle: 45
         });
 
         var pikachu = new plant.Sprite({
@@ -44,10 +44,10 @@ function onPageLoad() {
             player.x = scene.mouseX; 
             player.y = scene.mouseY; 
             if (plant.isCollision(player, pikachu)) {
-                pikachu.opacity = 0.25;
+                pikachu.angle = 45;
             }
             if (plant.isCollision(player, dragon)) {
-                dragon.opacity = 0.25;
+                dragon.angle = 30;
             }
             if (plant.isCollision(player, crystal)) {
                 crystal.opacity = 0.25;

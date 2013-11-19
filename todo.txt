@@ -1,5 +1,13 @@
 
     -fix rotation (do conversion on processing canvas)
+        
+        i need to rotate sprites from center of rectangle,
+        and add new width and height props after totation
+
+        probably a solution - http://stackoverflow.com/questions/622140/calculate-bounding-box-coordinates-from-a-rotated-rectangle-picture-inside
+
+
+
     -add opacity property to all primitives
 
     -test and add tap event
