@@ -18,7 +18,6 @@ function onPageLoad() {
             src: 'crystal.png',
             x: 200,
             y: 200,
-            angle: 45
         });
 
         var pikachu = new plant.Sprite({
@@ -27,10 +26,10 @@ function onPageLoad() {
             y: 220,
         });
 
-        var rect = new plant.Rectangle({color: "#22aa44", angle: 45, x: 200, y: 120});
+        var rect = new plant.Rectangle({color: "#22aa44", x: 200, y: 120});
         scene.add(rect);
 
-        var el = new plant.Ellipse({color: "#ccee22", opacity: 0.6, angle: 0, x: 10, y:10, width: 30, height: 60});
+        var el = new plant.Ellipse({color: "#ccee22", opacity: 0.6, x: 10, y:10, width: 30, height: 60});
         scene.add(el);
 
         scene.add([dragon, crystal, pikachu, player]);
@@ -43,12 +42,6 @@ function onPageLoad() {
         myLoop.code = function() {
             player.x = scene.mouseX; 
             player.y = scene.mouseY; 
-            if (plant.isCollision(player, pikachu)) {
-                pikachu.angle = 45;
-            }
-            if (plant.isCollision(player, dragon)) {
-                dragon.angle = 30;
-            }
             if (plant.isCollision(player, crystal)) {
                 crystal.opacity = 0.25;
             }
