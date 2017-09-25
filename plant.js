@@ -51,7 +51,7 @@ var plant = {
             self.mouseX = e.clientX - self.htmlNode.offsetLeft;
             self.mouseY = e.clientY - self.htmlNode.offsetTop;
         }, false);
-        
+
         this._changeImageOpacity = function (imagenode, opacity) {
             if (this._processingCanvasNode.getContext) {
                 this._processingCanvasCtx = this._processingCanvasNode.getContext('2d');
@@ -77,7 +77,7 @@ var plant = {
         };
 
 
-        // Check for click on canvas itself 
+        // Check for click on canvas itself
         // or on any object attached to current scene
         this.htmlNode.addEventListener('click', function(e) {
 
@@ -125,7 +125,7 @@ var plant = {
                     isCollision = false;
                 }
 
-                // if there is any collision, execute onClick function of 
+                // if there is any collision, execute onClick function of
                 // scene's child object clicked, if it defined (not null)
                 if (isCollision && T.onClick !== null) {
                     T.onClick();
@@ -141,8 +141,8 @@ var plant = {
         this.height = options.height || 50;
 
         // plan works with hex colors, in full notation
-        this.color = options.color || '#ffffff';     
-                                                    
+        this.color = options.color || '#ffffff';
+
         this.x = options.x || 0;
         this.y = options.y || 0;
         this.zindex = options.zindex || 1;
@@ -286,10 +286,10 @@ var plant = {
 
         arr.sort(function (a, b) {
             var i = 0;
-            while (i < len) { 
-                a = a[prop[i]]; 
-                b = b[prop[i]]; 
-                i++; 
+            while (i < len) {
+                a = a[prop[i]];
+                b = b[prop[i]];
+                i++;
             }
             if (a < b) {
                 return -1;
@@ -308,7 +308,7 @@ var plant = {
     },
 
     _rgbToHex: function(r, g, b) {
-        return '#' + this._componentToHex(r) + this._componentToHex(g) + this._componentToHex(b);    
+        return '#' + this._componentToHex(r) + this._componentToHex(g) + this._componentToHex(b);
     },
 
     _hexToRgb: function(hex) {
@@ -331,7 +331,7 @@ plant.Scene.prototype.add = function(toAdd) {
             this.nodes.push(toAdd[i]);
         }
 
-    // single object
+        // single object
     } else {
         this.nodes.push(toAdd);
     }
@@ -352,7 +352,7 @@ plant.Scene.prototype.update = function() {
 
         var T = this.nodes[i];
         var ctx = this.context;
-        
+
         // don't render invisible objects
         if (T.visible) {
             switch (T.type()) {
@@ -364,19 +364,19 @@ plant.Scene.prototype.update = function() {
                             var r = plant._hexToRgb(T.color).r;
                             var g = plant._hexToRgb(T.color).g;
                             var b = plant._hexToRgb(T.color).b;
-                            ctx.fillStyle = 'rgba(' + r + ', ' + g + ', ' + b + ', ' + T.opacity + ')'; 
+                            ctx.fillStyle = 'rgba(' + r + ', ' + g + ', ' + b + ', ' + T.opacity + ')';
                         } else {
                             // opaque
                             ctx.fillStyle = T.color;
-                        } 
+                        }
                     } else {
                         throw new Error('Plant.js: invalid opacity value');
                     }
 
                     ctx.fillRect(T.x, T.y, T.width, T.height);
 
-            
-                break;
+
+                    break;
 
                 case 'ellipse':
                     if (T.opacity >= 0 && T.opacity <= 1) {
@@ -384,11 +384,11 @@ plant.Scene.prototype.update = function() {
                             var r = plant._hexToRgb(T.color).r;
                             var g = plant._hexToRgb(T.color).g;
                             var b = plant._hexToRgb(T.color).b;
-                            ctx.fillStyle = 'rgba(' + r + ', ' + g + ', ' + b + ', ' + T.opacity + ')'; 
+                            ctx.fillStyle = 'rgba(' + r + ', ' + g + ', ' + b + ', ' + T.opacity + ')';
                         } else {
                             // opaque
                             ctx.fillStyle = T.color;
-                        } 
+                        }
                     } else {
                         throw new Error('invalid opacity value');
                     }
@@ -410,7 +410,7 @@ plant.Scene.prototype.update = function() {
                     ctx.closePath();
                     ctx.fill();
                     //ctx.restore();
-                break;
+                    break;
 
                 case 'sprite':
 
@@ -432,14 +432,14 @@ plant.Scene.prototype.update = function() {
 
                     ctx.restore();
 
-                break;
+                    break;
 
                 case 'text':
                     ctx.font = T.font;
                     ctx.fillStyle = T.color;
                     ctx.textBaseline = 'top';
                     ctx.fillText(T.text, T.x, T.y);
-                break;
+                    break;
 
             }
         }
@@ -468,7 +468,7 @@ plant.Text.prototype.type = function() {
 };
 
 plant.GameLoop.prototype.start = function(scene) {
-    if (!scene.useTimer) {
+    if (scene && !scene.useTimer) {
         plant._animFrame = requestAnimationFrame(this.code);
     } else {
         if (!this._isActive) {
@@ -483,7 +483,7 @@ plant.GameLoop.prototype.start = function(scene) {
 };
 
 plant.GameLoop.prototype.stop = function(scene) {
-    if (!scene.useTimer) {
+    if (scene && !scene.useTimer) {
         cancelAnimationFrame(plant._animFrame);
     } else {
         if (this._isActive) {
@@ -495,5 +495,3 @@ plant.GameLoop.prototype.stop = function(scene) {
         }
     }
 };
-
-
