@@ -46,10 +46,10 @@ function onPageLoad() {
                 crystal.opacity = 0.25;
             }
             scene.update();
+            requestAnimationFrame(myLoop.code);
         };
 
-        myLoop.start();
-        
+        myLoop.start(scene);
 
  }   
 window.addEventListener('load', onPageLoad, false);

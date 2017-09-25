@@ -3,10 +3,12 @@
 */
 
 var plant = {
+    _animFrame: null,
 
     Scene: function(options) {
 
         options = options || {};
+        this.useTimer = options.useTimer || false;
         this.width = options.width || 320;
         this.height = options.height || 320;
         this.background = options.background || 'black';
@@ -465,23 +467,32 @@ plant.Text.prototype.type = function() {
     return 'text';
 };
 
-plant.GameLoop.prototype.start = function() {
-    if (!this._isActive) {
-        this.handle = setInterval(this.code, this.interval);
-        this._isActive = true;
-        return true;
+plant.GameLoop.prototype.start = function(scene) {
+    if (!scene.useTimer) {
+        plant._animFrame = requestAnimationFrame(this.code);
     } else {
-        return false; 
+        if (!this._isActive) {
+            this.handle = setInterval(this.code, this.interval);
+            this._isActive = true;
+            return true;
+        } else {
+            return false;
+        }
     }
+
 };
 
-plant.GameLoop.prototype.stop = function() {
-    if (this._isActive) {
-        clearInterval(this.handle);
-        this._isActive = false;
-        return true;
+plant.GameLoop.prototype.stop = function(scene) {
+    if (!scene.useTimer) {
+        cancelAnimationFrame(plant._animFrame);
     } else {
-        return false; 
+        if (this._isActive) {
+            clearInterval(this.handle);
+            this._isActive = false;
+            return true;
+        } else {
+            return false;
+        }
     }
 };
 
