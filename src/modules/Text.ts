@@ -1,14 +1,28 @@
-import {PLANT} from "../main";
+export class Text {
+  font: string;
+  color: string;
+  x: number;
+  y: number;
+  text: string;
+  zindex: number;
+  visible: boolean;
 
-export function Text (this: PLANT, options: any) {
-  options = options || {};
-  this.font = options.font || '10pt sans-serif';
-  this.color = options.color || '#ffffff';
-  this.x = options.x || 0;
-  this.y = options.y || 0;
+  constructor(
+    font = "10pt sans-serif",
+    color = "#ffffff",
+    x = 0,
+    y = 0,
+    text = "Sample text",
+    zindex = 1,
+    visible = true,
+  ) {
 
-  this.text = options.text || 'Sample text';
-
-  this.zindex = options.zindex || 1;
-  this.visible = options.visible || true;
+    this.font = font;
+    this.color = color;
+    this.x = x;
+    this.y = y;
+    this.text = text;
+    this.zindex = zindex;
+    this.visible = visible;
+  }
 }
