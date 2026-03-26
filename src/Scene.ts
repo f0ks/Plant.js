@@ -19,7 +19,7 @@ export class Scene {
   mouseY: number = 0;
   onClick: (() => void) | null = null;
 
-  private processingCanvas: HTMLCanvasElement;
+  private readonly processingCanvas: HTMLCanvasElement;
   private processingCtx: CanvasRenderingContext2D;
 
   constructor(options: SceneOptions = {}) {

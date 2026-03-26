@@ -1,4 +1,4 @@
-import { Scene, Text, Sprite, Rectangle } from "../../src/index";
+import { Scene, Text, Sprite, Rectangle } from "../../src";
 
 const txtMouse = new Text({
   x: 3,

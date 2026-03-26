@@ -1,4 +1,4 @@
-import { Scene, Sprite, GameLoop } from "../../src/index";
+import { Scene, Sprite, GameLoop } from "../../src";
 import { levels as originalLevels } from "./levels";
 
 const CELL_SIZE = 30;

@@ -1,4 +1,4 @@
-import { Scene, Text } from "../../src/index";
+import { Scene, Text } from "../../src";
 
 const canv1 = new Scene({ htmlNodeId: "canvas1" });
 const text1 = new Text({ x: 5, y: 5 });

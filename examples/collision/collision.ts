@@ -1,4 +1,4 @@
-import { Scene, Sprite, Rectangle, Ellipse, GameLoop, isCollision } from "../../src/index";
+import { Scene, Sprite, Rectangle, Ellipse, GameLoop, isCollision } from "../../src";
 
 const scene = new Scene();
 
