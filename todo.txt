@@ -1,7 +1,9 @@
 
-    -add opacity property to all primitives
+    -fix rotation (do conversion on processing canvas)
 
     -test and add tap event
+
+    -container object?
 
     -retina displays suppor (sprites)
 
