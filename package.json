@@ -1,0 +1,30 @@
+{
+  "name": "plant.js",
+  "version": "2.0.0",
+  "description": "Lightweight 2D canvas game engine",
+  "type": "module",
+  "main": "dist/plant.umd.cjs",
+  "module": "dist/plant.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/plant.js",
+      "require": "./dist/plant.umd.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "typecheck": "tsc --noEmit"
+  },
+  "author": "Albert Khamidullin",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^6.2.4"
+  }
+}
