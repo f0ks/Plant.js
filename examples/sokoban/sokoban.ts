@@ -72,9 +72,10 @@ function setPlayerPosition(position: Position): void {
     } else {
       curLevel++;
       loadLevel(curLevel);
-      const positionNewLevel = getPlayerPosition();
-      setPlayerPosition(positionNewLevel);
     }
+    isOnSpot = false;
+    isPushFromSpot = false;
+    return;
   }
 
   // set new position
