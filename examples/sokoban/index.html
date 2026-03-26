@@ -16,9 +16,32 @@
       margin: 0 auto;
       display: block;
     }
+    #level-select {
+      text-align: center;
+      margin: 10px 0;
+    }
+    #level-select button {
+      background: #555;
+      color: #fff;
+      border: 1px solid #777;
+      padding: 6px 14px;
+      margin: 0 3px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 3px;
+    }
+    #level-select button:hover {
+      background: #777;
+    }
+    #level-select button.active {
+      background: #8bc34a;
+      color: #222;
+      border-color: #8bc34a;
+    }
   </style>
 </head>
 <body>
+  <div id="level-select"></div>
   <code></code>
   <!-- preload images -->
   <img src="gfx/grass.png" alt="" style="display:none" />

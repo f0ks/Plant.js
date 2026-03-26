@@ -34,12 +34,52 @@ function loadLevel(index: number): void {
   level = levels[index];
   xLength = level.length;
   yLength = level[0].length;
+  updateLevelButtons();
 
   if (isInitialized) {
     setCanvasSize();
     isLevelChanged = true;
     renderView();
   }
+}
+
+function selectLevel(index: number): void {
+  loadLevels();
+  curLevel = index;
+  loadLevel(curLevel);
+  isOnSpot = false;
+  isPushFromSpot = false;
+
+  const pos = getPlayerPosition();
+  player.x = pos.x * CELL_SIZE;
+  player.y = pos.y * CELL_SIZE;
+
+  setCanvasSize();
+  isLevelChanged = true;
+  renderView();
+}
+
+function buildLevelButtons(): void {
+  const container = document.getElementById("level-select");
+  if (!container) return;
+  container.innerHTML = "";
+
+  for (let i = 0; i < originalLevels.length; i++) {
+    const btn = document.createElement("button");
+    btn.textContent = `${i + 1}`;
+    btn.addEventListener("click", () => selectLevel(i));
+    container.appendChild(btn);
+  }
+  updateLevelButtons();
+}
+
+function updateLevelButtons(): void {
+  const container = document.getElementById("level-select");
+  if (!container) return;
+  const buttons = container.querySelectorAll("button");
+  buttons.forEach((btn, i) => {
+    btn.classList.toggle("active", i === curLevel);
+  });
 }
 
 function getPlayerPosition(): Position {
@@ -347,5 +387,6 @@ gameLoop.start();
 
 renderView();
 isInitialized = true;
+buildLevelButtons();
 
 window.addEventListener("keydown", onKeyDown);
