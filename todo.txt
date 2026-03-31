@@ -1,3 +1,9 @@
+NEW V2 todos:
+-add tests
+-add eslintrc / prettier?
+
+------------------------------------
+OLD items from v1 (js):
 
     -fix rotation (do conversion on processing canvas)
 

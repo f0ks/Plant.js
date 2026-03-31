@@ -1,58 +1,48 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<style>
-
-    code
-    {
-        font-size: 14px;
-        /*
-        display: none;
-        */
-        color: white;
+  <meta charset="utf-8" />
+  <title>Sokoban</title>
+  <style>
+    code {
+      font-size: 14px;
+      color: white;
     }
-
-    body 
-    {
-        overflow: hidden;
-        background: #333;
+    body {
+      overflow: hidden;
+      background: #333;
     }
-
-    canvas
-    {
-        margin: 0 auto;
-        display: block;
+    canvas {
+      margin: 0 auto;
+      display: block;
     }
-
-</style>
-
-<script src="http://codeorigin.jquery.com/jquery-1.10.2.min.js"></script>
-   <script src="../../plant.js"></script>
-<script src="sokoban.js"></script>
-
-<script>
-
-</script>
-
-<title></title>
-
+    #level-select {
+      text-align: center;
+      margin: 10px 0;
+    }
+    #level-select button {
+      background: #555;
+      color: #fff;
+      border: 1px solid #777;
+      padding: 6px 14px;
+      margin: 0 3px;
+      cursor: pointer;
+      font-size: 14px;
+      border-radius: 3px;
+    }
+    #level-select button:hover {
+      background: #777;
+    }
+    #level-select button.active {
+      background: #8bc34a;
+      color: #222;
+      border-color: #8bc34a;
+    }
+  </style>
 </head>
-
 <body>
-
-
-   <code></code>
-
-   <!-- preload images -->
-   <img src="gfx/grass.png" alt="" style="display:none" />
-   <img src="gfx/floor.png" alt="" style="display:none" />
-   <img src="gfx/block.png" alt="" style="display:none" />
-   <img src="gfx/player.png" alt="" style="display:none" />
-   <img src="gfx/box.png" alt="" style="display:none" />
-   <img src="gfx/spot.png" alt="" style="display:none" />
-   <img src="gfx/bspot.png" alt="" style="display:none" />
-
+  <div id="level-select"></div>
+  <code></code>
+  <script type="module" src="./sokoban.ts"></script>
 </body>
 </html>
-
