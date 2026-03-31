@@ -1,130 +1,204 @@
-# Plant.js documentation #
+# Plant.js
 
+Lightweight 2D canvas game engine written in TypeScript.
 
-## plant.Scene(options); ##
+## Installation
 
-Every plant.js game should use at least one scene which is based on html canvas object.
+```bash
+npm install plant.js
+```
 
+## Quick Start
 
-**htmlNode (*string*)**, width (*number*), height (*number*), background (*string*)
+```typescript
+import { Scene, Rectangle, Sprite, GameLoop, isCollision } from "plant.js";
 
+// Create a scene (auto-creates a canvas element)
+const scene = new Scene({ width: 320, height: 480, background: "black" });
 
-`var myScene = new plant.Scene({`
-`     htmlNodeId: 'my_canvas',`
-`     background: 'black',`
-`     width: 320,`
-`     height: 480`
-`});`
+// Add objects
+const player = new Sprite({ src: "player.png", x: 100, y: 200 });
+const wall = new Rectangle({ x: 50, y: 50, width: 40, height: 40, color: "#fff" });
+scene.add([player, wall]);
 
-or just
+// Game loop
+const loop = new GameLoop({ scene });
+loop.code = () => {
+  if (isCollision(player, wall)) {
+    // handle collision
+  }
+  scene.update();
+};
+loop.start();
+```
 
-`var myScene = new plantScene();`
+## API
 
-and html canvas will be created for you automaticaly
+### Scene
 
+The main canvas container and renderer. Every Plant.js game needs at least one scene.
 
+```typescript
+const scene = new Scene({
+  htmlNodeId?: string,  // existing <canvas> element ID (auto-creates one if omitted)
+  width?: number,       // canvas width in pixels (default: 320)
+  height?: number,      // canvas height in pixels (default: 320)
+  background?: string,  // background color (default: "black")
+  useTimer?: boolean,   // use setInterval instead of requestAnimationFrame (default: false)
+});
+```
 
-### Methods
-`.update()`
-redraw a scene
+**Properties:**
+- `mouseX`, `mouseY` - current mouse position on the canvas
+- `nodes` - array of all added objects
+- `onClick` - callback for canvas click events
 
-`.add(child)`
-or
-`.add([children])`
-add an object or array of objects to scene
+**Methods:**
+- `add(child)` / `add([children])` - add one or more objects to the scene
+- `update()` - redraw the scene (call this each frame)
 
-Theres's four types of object, which can be added to scene: rectangle, ellipse, sprite and text.
+### Rectangle
 
-### Properties
+```typescript
+const rect = new Rectangle({
+  x?: number,        // default: 0
+  y?: number,        // default: 0
+  width?: number,    // default: 0
+  height?: number,   // default: 0
+  color?: string,    // hex color (default: "#000000")
+  opacity?: number,  // 0 to 1 (default: 1)
+  zindex?: number,   // draw order (default: 1)
+  visible?: boolean, // default: true
+});
+```
 
-Scene has some useful properties you can get:
+### Ellipse
 
-`.mouseX`, `.mouseY` - mouse position on canvas
+```typescript
+const ellipse = new Ellipse({
+  x?: number,        // default: 0
+  y?: number,        // default: 0
+  width?: number,    // default: 0
+  height?: number,   // default: 0
+  color?: string,    // hex color (default: "#000000")
+  opacity?: number,  // 0 to 1 (default: 1)
+  zindex?: number,   // draw order (default: 1)
+  visible?: boolean, // default: true
+});
+```
 
-----------
+### Sprite
 
-## plant.Rectangle(options); ##
+Renders images with sprite sheet support.
 
-Creates a rectangle object.
+```typescript
+const sprite = new Sprite({
+  src: string,          // image path (required)
+  x?: number,           // default: 0
+  y?: number,           // default: 0
+  width?: number,       // display width (defaults to image natural width)
+  height?: number,      // display height (defaults to image natural height)
+  frameWidth?: number,  // sprite sheet frame width (defaults to image natural width)
+  frameHeight?: number, // sprite sheet frame height (defaults to image natural height)
+  xFrame?: number,      // horizontal frame index (default: 0)
+  yFrame?: number,      // vertical frame index (default: 0)
+  opacity?: number,     // 0 to 1 (default: 1)
+  zindex?: number,      // draw order (default: 1)
+  visible?: boolean,    // default: true
+});
+```
 
-width (*number*), height (*number*), color (*string*), opacity (*number*), x (*number*), y (*number*), zindex (*number*),
+**Methods:**
+- `fadeOut()` - begins a fade out animation
 
+### Text
 
-`        var myBomb = new plant.Rectangle({
-            width: 3,
-            height: 3,
-            color: 'green'
-        })
-`
+```typescript
+const text = new Text({
+  text?: string,     // text content
+  x?: number,        // default: 0
+  y?: number,        // default: 0
+  font?: string,     // CSS font string (default: "12pt Arial")
+  color?: string,    // default: "#000000"
+  zindex?: number,   // draw order (default: 1)
+  visible?: boolean, // default: true
+});
+```
 
-----------
-## plant.Ellipse(options); ##
+### GameLoop
 
-Creates an ellipse.
+Controls the game loop using `requestAnimationFrame` (default) or `setInterval`.
 
-width (*number*), height (*number*), color (*string*), opacity (*number*), x (*number*), y (*number*), zindex (*number*),
+```typescript
+const loop = new GameLoop({
+  scene: Scene,      // the scene instance (required)
+  interval?: number, // interval in ms for timer mode (default: 50)
+});
 
+loop.code = () => {
+  // update game state here
+  scene.update();
+};
 
-`        var perfectCircle = new plant.Ellipse({
-            width: 60,
-            height: 60,
-            color: '#cc66ef'
-        })
-`
+loop.start(); // returns true on success, false if already running
+loop.stop();  // returns true on success, false if already stopped
+```
 
-----------
+### Utility Functions
 
-## plant.Sprite(options); ##
+```typescript
+isCollision(obj1, obj2)    // AABB collision detection between two scene objects
+random(from, to)           // random integer in [from, to] range
+hexToRgb(hex)              // "#ff0000" -> { r: 255, g: 0, b: 0 }
+rgbToHex(r, g, b)          // (255, 0, 0) -> "#ff0000"
+```
 
-Creates a sprite object.
+### Common Properties
 
-**src (*string*)**, opacity (*number*), x (*number*), у (*number*), width (*number*), height (*number*), frameWidth (*number*), frameHeight (*number*), xFrame (*number*), yFrame (*number*), zindex (*number*)
+All scene objects (Rectangle, Ellipse, Sprite, Text) share:
 
+- `x`, `y` - position
+- `zindex` - draw order (lower draws first)
+- `visible` - show/hide
+- `onClick` - click handler callback (set to a function or `null`)
 
-`        var myPlayer = new plant.Sprite({
-            x: 240, 
-            y: 200, 
-            width: 15,
-            height: 25,
-            frameWidth: 15,
-            frameHeight: 25,
-            xFrame: 3,
-            yFrame: 0,
-            src: 'player.png', 
-            zindex: 2,
-            opacity: .6
-        })
-`
+## Events
 
-----------
+Click handling works on individual objects:
 
-## plant.Text(options); ##
+```typescript
+const button = new Rectangle({ x: 10, y: 10, width: 100, height: 40, color: "#333" });
+button.onClick = () => console.log("clicked!");
+scene.add(button);
+```
 
-Text node.
+Mouse position is tracked on the scene:
 
-font (*string*), color (*string*), x (*number*), y (*number*), text (*string*), zindex (*number*)
+```typescript
+loop.code = () => {
+  player.x = scene.mouseX;
+  player.y = scene.mouseY;
+  scene.update();
+};
+```
 
-`
-        var myTxt = new plant.Text({
-            x: 5,
-            y: 5,
-            color: '#9f9',
-        });
-`
+## Examples
 
+See the [`examples/`](examples/) directory:
 
-----------
+- **click** - click event handling on objects
+- **collision** - AABB collision detection
+- **multiple_canvas** - multiple independent scenes
+- **sokoban** - a complete Sokoban puzzle game ([play online](https://f0ks.github.io/sokoban.html))
 
-## PLANT'S MAIN OBJECT METHODS ##
+## Development
 
-----------
+```bash
+npm run dev        # start Vite dev server
+npm run build      # build library (ES module + UMD)
+npm run typecheck  # TypeScript type checking
+```
 
+## License
 
-## plant.Collision(object1, object2)
-returns true in case of collision between object1 and object 2
-
-----------
-
-## plant.Random(from, to)
-returns random integer in from-to range
-
+MIT
