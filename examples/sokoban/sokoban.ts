@@ -365,28 +365,37 @@ function onKeyDown(e: KeyboardEvent): void {
 }
 
 // Initialize
-loadLevels();
-loadLevel(curLevel);
+async function init(): Promise<void> {
+  await Sprite.preload([
+    "gfx/grass.png", "gfx/floor.png", "gfx/block.png",
+    "gfx/player.png", "gfx/box.png", "gfx/spot.png", "gfx/bspot.png",
+  ]);
 
-scene = new Scene();
-setCanvasSize();
+  loadLevels();
+  loadLevel(curLevel);
 
-const curPosition = getPlayerPosition();
-player = new Sprite({
-  src: "gfx/player.png",
-  zindex: 101,
-  width: CELL_SIZE,
-  height: CELL_SIZE,
-  x: curPosition.x * CELL_SIZE,
-  y: curPosition.y * CELL_SIZE,
-});
+  scene = new Scene();
+  setCanvasSize();
 
-gameLoop = new GameLoop({ scene, interval: 50 });
-gameLoop.code = () => scene.update();
-gameLoop.start();
+  const curPosition = getPlayerPosition();
+  player = new Sprite({
+    src: "gfx/player.png",
+    zindex: 101,
+    width: CELL_SIZE,
+    height: CELL_SIZE,
+    x: curPosition.x * CELL_SIZE,
+    y: curPosition.y * CELL_SIZE,
+  });
 
-renderView();
-isInitialized = true;
-buildLevelButtons();
+  gameLoop = new GameLoop({ scene, interval: 50 });
+  gameLoop.code = () => scene.update();
+  gameLoop.start();
 
-window.addEventListener("keydown", onKeyDown);
+  renderView();
+  isInitialized = true;
+  buildLevelButtons();
+
+  window.addEventListener("keydown", onKeyDown);
+}
+
+init();

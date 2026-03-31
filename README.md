@@ -108,6 +108,13 @@ const sprite = new Sprite({
 });
 ```
 
+**Static Methods:**
+- `Sprite.preload(sources)` - preload one or more image URLs, returns a `Promise<void>`. Preloaded images are cached and used automatically when creating new Sprite instances, ensuring dimensions are available immediately.
+
+```typescript
+await Sprite.preload(["player.png", "enemy.png", "tiles.png"]);
+```
+
 **Methods:**
 - `fadeOut()` - begins a fade out animation
 
