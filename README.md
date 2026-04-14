@@ -151,6 +151,28 @@ loop.start(); // returns true on success, false if already running
 loop.stop();  // returns true on success, false if already stopped
 ```
 
+### animate
+
+Smoothly animates a scene node's position over time using ease-out quadratic easing. Returns a `Promise` that resolves when the animation completes.
+
+```typescript
+import { animate } from "plant.js";
+
+// Move a sprite to (200, 300) over 150ms
+await animate(sprite, { x: 200, y: 300 }, 150);
+
+// Animate multiple nodes simultaneously
+await Promise.all([
+  animate(player, { x: 100, y: 100 }, 120),
+  animate(box, { x: 100, y: 200 }, 120),
+]);
+```
+
+**Parameters:**
+- `node` - any scene object (Rectangle, Ellipse, Sprite, Text)
+- `target` - object with optional `x` and `y` target positions
+- `duration` - animation duration in milliseconds
+
 ### Utility Functions
 
 ```typescript

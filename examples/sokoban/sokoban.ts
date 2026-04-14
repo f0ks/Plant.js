@@ -1,7 +1,8 @@
-import { Scene, Sprite, GameLoop } from "../../src";
+import { Scene, Sprite, GameLoop, animate } from "../../src";
 import { levels as originalLevels } from "./levels";
 
 const CELL_SIZE = 30;
+const ANIM_DURATION = 120;
 
 let levels: string[][][];
 let level: string[][];
@@ -10,8 +11,7 @@ let yLength: number;
 let curLevel = 0;
 let isInitialized = false;
 let isLevelChanged = true;
-let isOnSpot = false;
-let isPushFromSpot = false;
+let isAnimating = false;
 
 let scene: Scene;
 let player: Sprite;
@@ -38,6 +38,11 @@ function loadLevel(index: number): void {
 
   if (isInitialized) {
     setCanvasSize();
+
+    const pos = getPlayerPosition();
+    player.x = pos.x * CELL_SIZE;
+    player.y = pos.y * CELL_SIZE;
+
     isLevelChanged = true;
     renderView();
   }
@@ -47,16 +52,6 @@ function selectLevel(index: number): void {
   loadLevels();
   curLevel = index;
   loadLevel(curLevel);
-  isOnSpot = false;
-  isPushFromSpot = false;
-
-  const pos = getPlayerPosition();
-  player.x = pos.x * CELL_SIZE;
-  player.y = pos.y * CELL_SIZE;
-
-  setCanvasSize();
-  isLevelChanged = true;
-  renderView();
 }
 
 function buildLevelButtons(): void {
@@ -93,207 +88,148 @@ function getPlayerPosition(): Position {
   throw new Error("Player not found on level");
 }
 
-function setPlayerPosition(position: Position): void {
-  let numberOfBoxes = 0;
+function findBoxSprite(row: number, col: number): Sprite | undefined {
+  const px = col * CELL_SIZE;
+  const py = row * CELL_SIZE;
+  return scene.nodes.find(
+    (n) =>
+      n.type() === "sprite" &&
+      n.x === px &&
+      n.y === py &&
+      ((n as Sprite).src === "gfx/box.png" || (n as Sprite).src === "gfx/bspot.png"),
+  ) as Sprite | undefined;
+}
+
+function updateGridPlayer(
+  newPos: Position,
+  onSpot: boolean,
+  pushFromSpot: boolean,
+): void {
   for (let i = 0; i < xLength; i++) {
     for (let j = 0; j < yLength; j++) {
-      if (level[i][j] === "B") numberOfBoxes++;
       if (level[i][j] === "@") level[i][j] = "-";
       if (level[i][j] === "%") level[i][j] = "*";
     }
   }
 
-  // check for win
-  if (numberOfBoxes < 1) {
+  if (onSpot || pushFromSpot) {
+    level[newPos.y][newPos.x] = "%";
+  } else {
+    level[newPos.y][newPos.x] = "@";
+  }
+}
+
+function checkWin(): boolean {
+  let boxCount = 0;
+  for (let i = 0; i < xLength; i++) {
+    for (let j = 0; j < yLength; j++) {
+      if (level[i][j] === "B") boxCount++;
+    }
+  }
+
+  if (boxCount < 1) {
     if (curLevel === levels.length - 1) {
       loadLevels();
       curLevel = 0;
-      loadLevel(0);
     } else {
       curLevel++;
-      loadLevel(curLevel);
     }
-    isOnSpot = false;
-    isPushFromSpot = false;
+    loadLevel(curLevel);
+    return true;
+  }
+  return false;
+}
+
+async function move(dy: number, dx: number): Promise<void> {
+  if (isAnimating) return;
+
+  const cur = getPlayerPosition();
+  const ny = cur.y + dy;
+  const nx = cur.x + dx;
+
+  if (ny < 0 || ny >= xLength || nx < 0 || nx >= yLength) return;
+
+  const target = level[ny][nx];
+
+  let boxFrom: Position | null = null;
+  let boxTo: Position | null = null;
+  let isOnSpot = false;
+  let isPushFromSpot = false;
+
+  if (target === "D" || target === "G") {
     return;
-  }
-
-  // set new position
-  if (isOnSpot || isPushFromSpot) {
-    level[position.y][position.x] = "%";
-  } else {
-    level[position.y][position.x] = "@";
-  }
-
-  isOnSpot = false;
-  isPushFromSpot = false;
-
-  renderView();
-}
-
-function goUp(): void {
-  isLevelChanged = true;
-  const cur = getPlayerPosition();
-  let isPushed = false;
-
-  if (cur.y > 0) {
-    const above = level[cur.y - 1][cur.x];
-
-    if (above !== "-" && above !== "*" && above !== "$") {
-      // push box to empty space
-      if (above === "B" && cur.y - 1 > 0 && level[cur.y - 2][cur.x] === "-") {
-        level[cur.y - 1][cur.x] = "-";
-        level[cur.y - 2][cur.x] = "B";
-        cur.y--;
-        setPlayerPosition(cur);
-        isPushed = true;
-      }
-      // push box to spot
-      if (above === "B" && cur.y - 1 > 0 && level[cur.y - 2][cur.x] === "*" && !isPushed) {
-        level[cur.y - 1][cur.x] = "-";
-        level[cur.y - 2][cur.x] = "$";
-        cur.y--;
-        setPlayerPosition(cur);
-      }
+  } else if (target === "B") {
+    const by = ny + dy;
+    const bx = nx + dx;
+    if (by < 0 || by >= xLength || bx < 0 || bx >= yLength) return;
+    const beyond = level[by][bx];
+    if (beyond === "-") {
+      level[ny][nx] = "-";
+      level[by][bx] = "B";
+      boxFrom = { y: ny, x: nx };
+      boxTo = { y: by, x: bx };
+    } else if (beyond === "*") {
+      level[ny][nx] = "-";
+      level[by][bx] = "$";
+      boxFrom = { y: ny, x: nx };
+      boxTo = { y: by, x: bx };
     } else {
-      if (above === "*") isOnSpot = true;
-      if (above === "$" && level[cur.y - 2][cur.x] !== "D") {
-        level[cur.y - 2][cur.x] = "B";
-        isPushFromSpot = true;
-      }
-      if (above === "$" && level[cur.y - 2][cur.x] === "D") {
-        cur.y++;
-      }
-      cur.y--;
-      setPlayerPosition(cur);
+      return;
     }
-  }
-
-  isLevelChanged = true;
-  renderView();
-}
-
-function goDown(): void {
-  const cur = getPlayerPosition();
-  let isPushed = false;
-
-  if (cur.y < xLength - 1) {
-    const below = level[cur.y + 1][cur.x];
-
-    if (below !== "-" && below !== "*" && below !== "$") {
-      if (below === "B" && cur.y + 1 < xLength - 1 && level[cur.y + 2][cur.x] === "-") {
-        level[cur.y + 1][cur.x] = "-";
-        level[cur.y + 2][cur.x] = "B";
-        cur.y++;
-        setPlayerPosition(cur);
-        isPushed = true;
-      }
-      if (below === "B" && cur.y + 1 < xLength - 1 && level[cur.y + 2][cur.x] === "*" && !isPushed) {
-        level[cur.y + 1][cur.x] = "-";
-        level[cur.y + 2][cur.x] = "$";
-        cur.y++;
-        setPlayerPosition(cur);
-        renderView();
-      }
+  } else if (target === "$") {
+    const by = ny + dy;
+    const bx = nx + dx;
+    if (by < 0 || by >= xLength || bx < 0 || bx >= yLength) return;
+    const beyond = level[by][bx];
+    if (beyond !== "-" && beyond !== "*") return;
+    if (beyond === "*") {
+      level[by][bx] = "$";
     } else {
-      if (below === "*") isOnSpot = true;
-      if (below === "$" && level[cur.y + 2][cur.x] !== "D") {
-        if (level[cur.y + 2][cur.x] === "*") level[cur.y + 2][cur.x] = "$";
-        if (level[cur.y + 2][cur.x] === "-") level[cur.y + 2][cur.x] = "B";
-        isPushFromSpot = true;
-      }
-      if (below === "$" && level[cur.y + 2][cur.x] === "D") {
-        cur.y--;
-      }
-      cur.y++;
-      setPlayerPosition(cur);
+      level[by][bx] = "B";
     }
+    boxFrom = { y: ny, x: nx };
+    boxTo = { y: by, x: bx };
+    isPushFromSpot = true;
+  } else if (target === "*") {
+    isOnSpot = true;
   }
+
+  // Find the box sprite BEFORE rebuilding anything
+  let boxSprite: Sprite | undefined;
+  if (boxFrom) {
+    boxSprite = findBoxSprite(boxFrom.y, boxFrom.x);
+  }
+
+  // Update grid for player position
+  updateGridPlayer({ y: ny, x: nx }, isOnSpot, isPushFromSpot);
+
+  renderDebugHtml();
+
+  // Animate player and pushed box
+  isAnimating = true;
+  const animations: Promise<void>[] = [];
+  animations.push(
+    animate(player, { x: nx * CELL_SIZE, y: ny * CELL_SIZE }, ANIM_DURATION),
+  );
+  if (boxSprite && boxTo) {
+    animations.push(
+      animate(
+        boxSprite,
+        { x: boxTo.x * CELL_SIZE, y: boxTo.y * CELL_SIZE },
+        ANIM_DURATION,
+      ),
+    );
+  }
+  await Promise.all(animations);
+  isAnimating = false;
+
+  if (checkWin()) return;
 
   isLevelChanged = true;
   renderView();
 }
 
-function goRight(): void {
-  const cur = getPlayerPosition();
-  let isPushed = false;
-
-  if (cur.x < yLength - 1) {
-    const right = level[cur.y][cur.x + 1];
-
-    if (right !== "-" && right !== "*" && right !== "$") {
-      if (right === "B" && cur.x + 1 > 0 && level[cur.y][cur.x + 2] === "-") {
-        level[cur.y][cur.x + 1] = "-";
-        level[cur.y][cur.x + 2] = "B";
-        cur.x++;
-        setPlayerPosition(cur);
-        isPushed = true;
-      }
-      if (right === "B" && cur.x + 1 > 0 && level[cur.y][cur.x + 2] === "*" && !isPushed) {
-        level[cur.y][cur.x + 1] = "-";
-        level[cur.y][cur.x + 2] = "$";
-        cur.x++;
-        setPlayerPosition(cur);
-      }
-    } else {
-      if (right === "*") isOnSpot = true;
-      if (right === "$" && level[cur.y][cur.x + 2] !== "D") {
-        level[cur.y][cur.x + 2] = "B";
-        isPushFromSpot = true;
-      }
-      if (right === "$" && level[cur.y][cur.x + 2] === "D") {
-        cur.x--;
-      }
-      cur.x++;
-      setPlayerPosition(cur);
-    }
-  }
-
-  isLevelChanged = true;
-  renderView();
-}
-
-function goLeft(): void {
-  const cur = getPlayerPosition();
-  let isPushed = false;
-
-  if (cur.x > 0) {
-    const left = level[cur.y][cur.x - 1];
-
-    if (left !== "-" && left !== "*" && left !== "$") {
-      if (left === "B" && cur.x - 1 > 0 && level[cur.y][cur.x - 2] === "-" && level[cur.y][cur.x - 2] !== "*") {
-        level[cur.y][cur.x - 1] = "-";
-        level[cur.y][cur.x - 2] = "B";
-        cur.x--;
-        isPushed = true;
-        setPlayerPosition(cur);
-      }
-      if (left === "B" && level[cur.y][cur.x - 2] === "*" && !isPushed) {
-        level[cur.y][cur.x - 1] = "-";
-        level[cur.y][cur.x - 2] = "$";
-        cur.x--;
-        setPlayerPosition(cur);
-      }
-    } else {
-      if (left === "*") isOnSpot = true;
-      if (left === "$" && level[cur.y][cur.x - 2] !== "D") {
-        level[cur.y][cur.x - 2] = "B";
-        isPushFromSpot = true;
-      }
-      if (left === "$" && level[cur.y][cur.x - 2] === "D") {
-        cur.x++;
-      }
-      cur.x--;
-      setPlayerPosition(cur);
-    }
-  }
-
-  isLevelChanged = true;
-  renderView();
-}
-
-function renderView(): void {
-  // render debug HTML view
+function renderDebugHtml(): void {
   let htmlView = "";
   for (let i = 0; i < xLength; i++) {
     for (let j = 0; j < yLength; j++) {
@@ -305,8 +241,11 @@ function renderView(): void {
   }
   const codeEl = document.querySelector("code");
   if (codeEl) codeEl.innerHTML = htmlView;
+}
 
-  // render canvas view
+function renderView(): void {
+  renderDebugHtml();
+
   const curPosition = getPlayerPosition();
   player.x = curPosition.x * CELL_SIZE;
   player.y = curPosition.y * CELL_SIZE;
@@ -356,11 +295,13 @@ function setCanvasSize(): void {
 }
 
 function onKeyDown(e: KeyboardEvent): void {
+  if (isAnimating) return;
+
   switch (e.key) {
-    case "ArrowUp":    goUp(); break;
-    case "ArrowLeft":  goLeft(); break;
-    case "ArrowRight": goRight(); break;
-    case "ArrowDown":  goDown(); break;
+    case "ArrowUp":    void move(-1, 0); break;
+    case "ArrowLeft":  void move(0, -1); break;
+    case "ArrowRight": void move(0, 1); break;
+    case "ArrowDown":  void move(1, 0); break;
   }
 }
 
@@ -398,4 +339,4 @@ async function init(): Promise<void> {
   window.addEventListener("keydown", onKeyDown);
 }
 
-init();
+void init();
