@@ -1,0 +1,6 @@
+; isolated-floor: the goal on the right is walled off from the player's
+; start, with no path in.
+
+#######
+#@$..#.#
+#######

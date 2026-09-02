@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildBoard } from "../board";
-import { findCorrals, isPICorral } from "../deadlock/corral";
+import { findCorrals, isPICorral, isCorralUnsatisfied } from "../deadlock/corral";
 
 describe("findCorrals", () => {
   it("finds no corral when every floor cell is player-reachable", () => {
@@ -54,5 +54,27 @@ describe("isPICorral", () => {
     expect(corrals).toHaveLength(1);
     expect(corrals[0].boxes).toEqual([idx(3, 1)]);
     expect(isPICorral(board, state, corrals[0])).toBe(false);
+  });
+});
+
+describe("isCorralUnsatisfied", () => {
+  // Regression for a real solver bug found against Microban level 96: a
+  // dead-end room with no goal in it was being treated as "unsatisfied"
+  // purely because its barrier box wasn't currently on *any* goal (goals
+  // elsewhere on the board don't count). Once `isPICorral` also came back
+  // true, the solver force-restricted every candidate push to that one
+  // pointless box, permanently starving every other box of moves and
+  // reporting the level unsolvable. A corral with no goal in it is never a
+  // reason to restrict the search.
+  it("is false for a goal-less pocket, even though its barrier box isn't on a goal", () => {
+    const { board, state } = buildBoard(["#####", "#@$ #", "#####"]);
+    const corrals = findCorrals(board, state);
+    expect(isCorralUnsatisfied(board, state, corrals[0])).toBe(false);
+  });
+
+  it("is true when the corral contains an unfilled goal", () => {
+    const { board, state } = buildBoard(["#####", "#@$.#", "#####"]);
+    const corrals = findCorrals(board, state);
+    expect(isCorralUnsatisfied(board, state, corrals[0])).toBe(true);
   });
 });

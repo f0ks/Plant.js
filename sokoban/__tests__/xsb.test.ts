@@ -45,6 +45,66 @@ describe("parseXSBFile", () => {
   it("throws on an empty file", () => {
     expect(() => parseXSBFile("")).toThrow();
   });
+
+  it("treats a leading non-semicolon metadata line (no grid chars) as a comment", () => {
+    // Real Skinner/Microban files use a bare quoted title line, e.g. 'Duh!',
+    // with no leading semicolon.
+    const text = "'Duh!'\n#####\n#@$.#\n#####";
+    const file = parseXSBFile(text);
+
+    expect(file.levels).toHaveLength(1);
+    expect(file.levels[0].comments).toEqual(["'Duh!'"]);
+    expect(file.levels[0].rows).toEqual(["#####", "#@$.#", "#####"]);
+  });
+
+  it("merges a blank-line-separated title block into the following grid block", () => {
+    // Real Microban files put a blank line between the "; N" title and the
+    // grid itself: "; 44\n\n#####\n#@$.#\n#####". That blank line must not
+    // be treated as a level separator when nothing but metadata precedes it.
+    const text = "; 44\n\n#####\n#@$.#\n#####";
+    const file = parseXSBFile(text);
+
+    expect(file.levels).toHaveLength(1);
+    expect(file.levels[0].comments).toEqual(["; 44"]);
+    expect(file.levels[0].rows).toEqual(["#####", "#@$.#", "#####"]);
+  });
+
+  it("merges a blank-line-separated title with both a number and quoted description", () => {
+    const text = "; 44\n'Duh!'\n\n#####\n#@$.#\n#####";
+    const file = parseXSBFile(text);
+
+    expect(file.levels).toHaveLength(1);
+    expect(file.levels[0].comments).toEqual(["; 44", "'Duh!'"]);
+    expect(file.levels[0].rows).toEqual(["#####", "#@$.#", "#####"]);
+  });
+
+  it("parses consecutive Microban-style levels with blank-line-separated titles", () => {
+    const text = [
+      "; 1",
+      "",
+      "#####",
+      "#@$.#",
+      "#####",
+      "",
+      "; 2",
+      "'Second'",
+      "",
+      "######",
+      "#@$$.#",
+      "######",
+    ].join("\n");
+    const file = parseXSBFile(text);
+
+    expect(file.levels).toHaveLength(2);
+    expect(file.levels[0].comments).toEqual(["; 1"]);
+    expect(file.levels[0].rows).toEqual(["#####", "#@$.#", "#####"]);
+    expect(file.levels[1].comments).toEqual(["; 2", "'Second'"]);
+    expect(file.levels[1].rows).toEqual(["######", "#@$$.#", "######"]);
+  });
+
+  it("throws when a metadata-only block has no following grid block", () => {
+    expect(() => parseXSBFile("; 44\n'Duh!'")).toThrow();
+  });
 });
 
 describe("serializeXSBFile", () => {

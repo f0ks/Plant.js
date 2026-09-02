@@ -135,4 +135,52 @@ describe("solve", () => {
     expect(result.solvable).toBe(false);
     expect(result.deadlockReason).toBeTruthy();
   });
+
+  it("solves a level with two boxes stacked vertically, one free to slide sideways (Microban #3 regression)", () => {
+    // Regression for a false "no_solution": hasFreezeDeadlock cached a
+    // conclusion computed under a since-invalidated cycle-breaking
+    // assumption. See docs/level-generation.md's Phase 3 note and
+    // freezeDeadlock.test.ts's matching unit-level regression.
+    const { board, state } = buildBoard([
+      "  ####",
+      "###  ####",
+      "#     $ #",
+      "# #  #$ #",
+      "# . .#@ #",
+      "#########",
+    ]);
+    const result = solve(board, state, { timeoutMs: 15000 });
+
+    expect(result.solvable).toBe(true);
+    const final = replay(board, state, result.solution);
+    expect(isSolved(board, final)).toBe(true);
+  });
+
+  it("solves a level with a goal-less dead-end pocket next to a box that also has a real escape (Microban #96 regression)", () => {
+    // Regression for a false "no_solution": solver.ts's corral-unsatisfied
+    // check treated "this barrier box isn't on *a* goal" (anywhere on the
+    // board) as reason enough to force-restrict every candidate push down
+    // to that one goal-less pocket's barrier box, starving every other box
+    // of moves for the rest of the search. See
+    // docs/level-generation.md's Phase 3 note and corral.test.ts's matching
+    // isCorralUnsatisfied unit regression.
+    const { board, state } = buildBoard([
+      "  ######",
+      "  #    #",
+      "  #    #",
+      "#####  #",
+      "#   #.#####",
+      "#   $@$   #",
+      "#####.#   #",
+      "   ## ## ##",
+      "   #   $.#",
+      "   #   ###",
+      "   #####",
+    ]);
+    const result = solve(board, state, { timeoutMs: 15000 });
+
+    expect(result.solvable).toBe(true);
+    const final = replay(board, state, result.solution);
+    expect(isSolved(board, final)).toBe(true);
+  });
 });

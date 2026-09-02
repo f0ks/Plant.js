@@ -1,0 +1,6 @@
+; not-closed: bottom row is missing its wall, so reachable floor touches
+; the grid edge.
+
+#####
+#@$.#
+#   #

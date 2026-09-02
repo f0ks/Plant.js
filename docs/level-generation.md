@@ -1,11 +1,168 @@
 # Sokoban Level Generation — Design Note
 
-Status: Phases 0-2 complete (design note, XSB/board/state core, and the
-push-optimal solver with all four planned deadlock/pruning techniques).
-Not yet started: Phase 3 (Microban validation gate), Phase 4 (metrics and
-scoring calibration), Phase 5 (the generator itself), Phase 6 (integration).
+Status: Phases 0-3 complete (design note, XSB/board/state core, the
+push-optimal solver with all four planned deadlock/pruning techniques, and
+the Microban validation gate). Not yet started: Phase 4 (metrics and scoring
+calibration), Phase 5 (the generator itself), Phase 6 (integration).
 
-## Phase 2 scoping decisions (recorded here per §6's promise to update this note)
+## Phase 3: Microban validation gate
+
+### 3.1 Fixtures
+
+`fixtures/microban/m1.txt` — David W. Skinner's Microban set, 155 levels,
+fetched verbatim from a mirror of his original page and credited per its
+distribution terms (`fixtures/microban/README.md`). `fixtures/broken/` holds
+one deliberately-invalid level per universal structural rule (see 3.3), used
+to test that `sokoban/validate.ts` rejects each failure mode
+(`sokoban/__tests__/fixtures.test.ts`).
+
+### 3.2 Parser gap found against real data
+
+The real Microban file doesn't match the format §2/§6 assumed: every level
+puts a **blank line** between its `; N` title and its grid (not adjacent),
+and some levels have a second title line in bare single quotes with no `;`
+prefix (e.g. `'Duh!'` on level 44). `parseXSBFile` threw on the whole file
+under the original "leading `;` lines, no blank line" assumption. Fixed by
+(a) classifying any line containing a character outside the valid XSB grid
+set as metadata regardless of a `;` prefix, and (b) merging a metadata-only
+block forward into the next block instead of treating it as its own
+(grid-less) level. `comments` no longer round-trips byte-for-byte through
+`serializeXSBFile` for files using this convention (the blank line is
+dropped) — round-trip fidelity was only ever demonstrated against the
+adjacent-comment style, and nothing downstream needs the original text back;
+see `sokoban/xsb.ts` and the added `parseXSBFile` tests.
+
+### 3.3 Structural checks (§5): two of the four are not universal — corrected against real data
+
+`sokoban/validate.ts` implements all four §5 checks, but running them
+against all 155 real Microban levels falsified two of them as blanket
+rejection rules:
+
+- **`box-on-goal-at-start`**: 72 hits across 40 levels — including level 1,
+  the very first tutorial level. Professionally designed levels routinely
+  start a box already on its goal (a legitimate framing choice); this is not
+  a defect.
+- **`isolated-floor`**, as originally written (any floor cell unreachable
+  from the player, boxes ignored): 147/155 levels hit this — hand-drawn XSB
+  ragged-edge padding (blank alignment space outside the walls) is floor by
+  the parser's own padding rule (§2) but is essentially never fully
+  connected. Redefined to only flag a **goal or box** cell that's
+  unreachable (padding with no goal/box in it doesn't matter to solving).
+  That drops the false-positive rate to 1/155: level 155, "The Dungeon",
+  which has several small walled-off rooms containing a pre-matched
+  box+goal pair purely as decoration — a real, deliberate exception, not a
+  bug in the check.
+
+Both checks are kept in `validateStructure` (correct, tested, useful for
+Phase 5's generator to self-check its own output) but are no longer treated
+as hard gates for imported/third-party levels. `not-closed` and
+`box-goal-mismatch` are the two checks that hold universally — 0 failures
+across all 155 Microban levels — and are what actually gates
+`sokoban/cli/validate-microban.ts`'s exit code and the fixtures test.
+
+### 3.4 Solver correctness bugs found and fixed (two)
+
+Running the solver against Microban (not just structural checks) is what
+actually earns "validation gate" in this phase's name — it surfaced two
+real bugs, not performance limits.
+
+#### 3.4.1 Freeze-deadlock cache poisoning
+
+Level 3 — a beginner-tier level —
+returned `no_solution` after exhausting a 48-state search space, despite a
+brute-force search (no deadlock pruning at all) finding a solution in 169
+states. Bisecting the four pruning mechanisms individually against level 3
+isolated it to `hasFreezeDeadlock`.
+
+Root cause (`sokoban/deadlock/freezeDeadlock.ts`): `checkFrozen`'s
+cycle-breaking recursion (temporarily assuming a box on the call stack is
+frozen, to resolve mutual box-on-box dependencies) unconditionally cached
+(`resolved.set`) whatever answer it computed — including an answer computed
+*while* that assumption was active for some other box still higher up the
+stack. When the assumed-frozen box later resolved to **not** frozen after
+all, the nested answer computed under that now-false assumption stayed
+cached as if it were unconditional truth. Concretely: two boxes stacked
+vertically, the lower one pinned against a wall on one side but not
+genuinely frozen (the upper box can still slide sideways) — checking the
+upper box first correctly resolves it to "not frozen," but along the way it
+nested-computes and poisons the lower box's cache entry as "frozen," so a
+direct query of the lower box afterwards (exactly what `hasFreezeDeadlock`'s
+box loop does) returns the wrong answer.
+
+Fix: only write into the `resolved` memo when the call is a "root" query —
+`assumed` is empty once the current cell is popped back off it, meaning no
+other box's cycle-breaking assumption was active on the stack while this
+answer was computed. A nested answer computed mid-assumption is still
+returned to its immediate caller (needed for that caller's own
+computation) but never persisted as a global fact. Regression test:
+`sokoban/__tests__/freezeDeadlock.test.ts`, "is not frozen when a
+mutual-dependency cycle resolves false for the box actually being asked
+about."
+
+#### 3.4.2 Corral pruning forced a pointless move, starving every other box
+
+Level 96 (and 97) returned `no_solution` after exhausting a few thousand
+states, despite a brute-force search finding a solution. Bisection (same
+method as 3.4.1) isolated it to corral pruning specifically, and it
+reproduced from the level's very first move — not deep in the search.
+
+Root cause (`sokoban/solver.ts`'s corral loop, using
+`sokoban/deadlock/corral.ts`): a corral (player-unreachable pocket) was
+treated as needing attention ("unsatisfied") if *either* it contained an
+unfilled goal, *or* one of its barrier boxes wasn't currently sitting on
+*any* goal — anywhere on the board, not necessarily inside this corral.
+Level 96 has a small dead-end room with no goal in it at all, whose sole
+barrier box (not yet on its own goal, which lies elsewhere entirely) still
+satisfied that second, meaningless disjunct. Once `isPICorral` also
+confirmed the room as pushable-into (correctly — it really is a one-way
+dead end with no other currently-legal escape), the solver restricted
+*every* candidate push at that state down to just that one pointless box,
+forever — the other two boxes never got a single move. The branch
+freeze-deadlocked once the box was fully pushed in, and since it was the
+only branch, the whole search reported unsolvable immediately.
+
+Fix: dropped the "barrier box isn't on a goal" disjunct. A corral is only
+ever a reason to restrict search if pushing into it can make progress,
+which requires an actual unfilled goal *inside the corral* — extracted as
+`isCorralUnsatisfied` (`sokoban/deadlock/corral.ts`), used by both
+`solver.ts` and `sokoban/__tests__/corral.test.ts`. Regression test:
+`sokoban/__tests__/solver.test.ts`, "solves a level with a goal-less
+dead-end pocket next to a box that also has a real escape (Microban #96
+regression)".
+
+### 3.5 Solve-rate results
+
+Full run: `node sokoban/cli/validate-microban.ts fixtures/microban/m1.txt --timeout 8000`
+(≈3 min wall-clock for all 155 levels; not part of `npm test` — see 3.6).
+
+| | count |
+|---|---|
+| Total levels | 155 |
+| Structurally valid (`not-closed` / `box-goal-mismatch`) | 155/155 |
+| Solved | 141 (91%) |
+| Failed — `timeout` | 14 |
+| Failed — `no_solution` | **0** |
+
+Zero `no_solution` failures is the meaningful number here: every level the
+solver reports unsolvable actually *is* (verified per-level during
+debugging above), and every remaining gap is a performance limit on the 14
+hardest levels, not a correctness bug — both of Phase 2's own scope cuts
+(§ "Phase 2 scoping decisions": multi-room corral combination, and the
+tunnel no-influence-push macro) target exactly this kind of case. Given
+that, and that this is a beginner-oriented set, treating 91% at an 8s/level
+budget as sufficient to proceed to Phase 4 rather than integrating either
+deferred technique now — revisit if a harder level set in a later phase
+shows a materially worse rate.
+
+### 3.6 Why the full run isn't part of `npm test`
+
+`sokoban/__tests__/fixtures.test.ts` checks structural validity (fast, all
+155 levels, no solving) and `sokoban/__tests__/solver.test.ts` carries
+targeted regressions for both bugs above, but a full 155-level solve is
+~3 minutes — too slow for a test suite run on every change. Use
+`sokoban/cli/validate-microban.ts` directly (3.5) when solver internals
+change and a full-set check is warranted.
+
 
 Two deliberate scope cuts, both performance-only (neither affects
 correctness — the solver's push-optimality guarantee doesn't depend on

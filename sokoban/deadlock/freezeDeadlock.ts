@@ -74,7 +74,15 @@ function checkFrozen(
   assumed.delete(cell);
 
   const frozen = horizontalBlocked && verticalBlocked;
-  resolved.set(cell, frozen);
+  // Only memoize a result computed as a "root" query (no other box's
+  // cycle-breaking assumption still active on the stack). A result reached
+  // while `assumed` is non-empty may have leaned on assuming some other,
+  // still-in-progress box is frozen -- if that box later resolves to
+  // *not* frozen, this result would've been wrong too, so it must not be
+  // cached as if it were unconditionally true.
+  if (assumed.size === 0) {
+    resolved.set(cell, frozen);
+  }
   return frozen;
 }
 

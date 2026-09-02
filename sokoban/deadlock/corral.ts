@@ -90,6 +90,19 @@ function structurallyPossiblePushes(
 }
 
 /**
+ * Is there a reason to treat `corral` as needing attention right now? True
+ * iff it contains at least one goal that isn't currently filled -- the only
+ * way to fill it is by pushing a box in through this corral's barrier. A
+ * corral with no goal in it is never "unsatisfied": no push into it can
+ * make progress, so it must not gate `isPICorral`-based search restriction
+ * (which would otherwise force every candidate push down to that corral's
+ * barrier boxes alone, even when none of them have any reason to move in).
+ */
+export function isCorralUnsatisfied(board: Board, state: State, corral: Corral): boolean {
+  return corral.cells.some((c) => board.isGoal[c] === 1 && !state.boxes.includes(c));
+}
+
+/**
  * Is `corral` a PI-corral? Two conditions, both against `state` as it is
  * right now:
  *  - I-corral: every push of a barrier box that is *currently legal*

@@ -37,6 +37,36 @@ describe("isFrozen", () => {
     expect(isFrozen(board, [box], box)).toBe(true);
   });
 
+  it("is not frozen when a mutual-dependency cycle resolves false for the box actually being asked about", () => {
+    // Regression for a false positive found solving real Microban levels:
+    // A sits above B. Checking A recursively (and correctly) resolves B's
+    // vertical-block via a cycle-breaking assumption ("assume A is frozen")
+    // while computing A's own answer -- but A turns out NOT frozen (it can
+    // slide sideways), which invalidates that assumption. The bug: B's
+    // frozen=true conclusion, computed under the stale assumption, was
+    // being cached (`resolved.set`) as if unconditionally true, so asking
+    // about B directly afterwards returned the wrong (poisoned) answer.
+    const { board } = buildBoard([
+      "######",
+      "#    #",
+      "# $  #",
+      "##$  #",
+      "#@   #",
+      "######",
+    ]);
+    const idx = (x: number, y: number) => y * board.width + x;
+    const boxA = idx(2, 2);
+    const boxB = idx(2, 3);
+    const boxes = [boxA, boxB];
+
+    // A can be pushed sideways (it's not pinned against any wall), so
+    // neither box is actually a permanent freeze deadlock. Must go through
+    // hasFreezeDeadlock (not isFrozen per-box) to exercise the bug: it's
+    // the shared assumed/resolved maps across both boxes in one call that
+    // poisons the cache.
+    expect(hasFreezeDeadlock(board, boxes)).toBe(false);
+  });
+
   it("is frozen for every box in a 2x2 block sitting in open space (mutual box-on-box freeze)", () => {
     const { board } = buildBoard([
       "##########",

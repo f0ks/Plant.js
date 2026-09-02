@@ -5,7 +5,7 @@ import { findPath } from "./reachability.ts";
 import { computeDeadSquares } from "./deadlock/staticDeadlock.ts";
 import { hasFreezeDeadlock } from "./deadlock/freezeDeadlock.ts";
 import { computeGoalDistanceTables, hungarianLowerBound } from "./heuristic.ts";
-import { findCorrals, isPICorral } from "./deadlock/corral.ts";
+import { findCorrals, isPICorral, isCorralUnsatisfied } from "./deadlock/corral.ts";
 
 export type DeadlockReason =
   | "bipartite"
@@ -248,10 +248,7 @@ export function solve(board: Board, initialState: State, options: SolveOptions =
 
     for (const corral of findCorrals(board, node.state)) {
       if (corral.boxes.length === 0) continue;
-      const unsatisfied =
-        corral.boxes.some((b) => board.isGoal[b] === 0) ||
-        corral.cells.some((c) => board.isGoal[c] === 1 && !node.state.boxes.includes(c));
-      if (!unsatisfied) continue;
+      if (!isCorralUnsatisfied(board, node.state, corral)) continue;
       if (isPICorral(board, node.state, corral)) {
         const barrier = new Set(corral.boxes);
         candidates = candidates.filter((p) => barrier.has(p.box));
