@@ -20,6 +20,7 @@
     "dev": "vite",
     "build": "vite build && tsc --emitDeclarationOnly",
     "typecheck": "tsc --noEmit",
+    "typecheck:sokoban": "tsc --noEmit -p sokoban/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest"
   },
