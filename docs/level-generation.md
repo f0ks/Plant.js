@@ -1,9 +1,108 @@
 # Sokoban Level Generation — Design Note
 
-Status: Phases 0-3 complete (design note, XSB/board/state core, the
-push-optimal solver with all four planned deadlock/pruning techniques, and
-the Microban validation gate). Not yet started: Phase 4 (metrics and scoring
-calibration), Phase 5 (the generator itself), Phase 6 (integration).
+Status: Phases 0-4 complete (design note, XSB/board/state core, the
+push-optimal solver with all four planned deadlock/pruning techniques, the
+Microban validation gate, and metrics/scoring calibration). Not yet started:
+Phase 5 (the generator itself), Phase 6 (integration).
+
+## Phase 4: metrics and scoring calibration
+
+### 4.1 Module-layout correction: only two of the four originally-listed metrics exist in the cited source
+
+§6's module layout (written in Phase 0, before the source paper's actual text
+had been re-checked closely) listed `metrics.ts` as covering
+"box_lines/box_changes/pushing_sessions/congestion/forced_ratio". Re-reading
+Taylor & Parberry (LARC-2011-01) §3.3 directly for this phase: the paper
+defines exactly three difficulty metrics -- move count, push count, and
+**box lines** -- and separately proposes **box changes** as a fourth,
+easy-to-define candidate it did not end up using ("this may be an even
+better measure of difficulty, and may improve the overall speed of the
+generator, but it is more difficult to implement" -- difficult to fold into
+their *generator's* forward search, not difficult to define). "Pushing
+sessions", "congestion", and "forced_ratio" do not appear anywhere in the
+paper; there's no other cited source in this project defining them either.
+Rather than invent definitions for terms that don't trace back to any
+source, `sokoban/metrics.ts` implements exactly the two the paper defines
+precisely enough to test: **box lines** and **box changes**.
+
+- **Box lines**: "how many times the player pushes a box, but any number of
+  pushes of the same box in the same direction only count as a single box
+  line." Implemented as `pushEvents()` (replays a solution string into an
+  ordered, stably-box-identified push sequence) plus `boxLines()`, which
+  counts runs of consecutive same-box-same-direction events.
+- **Box changes**: "how many times the player stopped pushing one box, in
+  any direction, and began pushing another." Implemented as `boxChanges()`
+  over the same event sequence. Available for future use (the paper leaves
+  open whether it or box lines correlates better with difficulty) but not
+  currently part of the scoring formula, matching the paper (which scores
+  with lines, not changes).
+
+### 4.2 Scoring formula and the touching/trapped adjustments
+
+`sokoban/metrics.ts`'s `score()` implements §3.3's formula verbatim:
+`100 * (pushes - siblingLevels + 4*lines - 12*boxes) + Random(0, 300)`, plus
+its post-score adjustments, applied at face value per the paper's own
+stated signs (not all penalties -- two are bonuses):
+
+| Condition | Points |
+|---|---|
+| Any box permanently stuck (interpreted here as `hasFreezeDeadlock`, since the paper doesn't define "trapped" further and this reuses Phase 2's already-tested check) | -100000 |
+| Box touching a wall | -150 |
+| Box touching the player | +50 |
+| Box touching another box | +30 |
+| Goal touching a goal | +30 |
+
+`isAccepted()` implements "any level with a final score of 0 or less is
+rejected." `countTouching()` counts each adjacent pair once per side (a box
+between two other boxes contributes 2 to `boxTouchingBox`), which is the
+simplest reading of "worth N points" per occurrence and is what's exercised
+by the calibration below.
+
+Two inputs the formula needs aren't available outside a generator batch and
+are out of scope until Phase 5: `siblingLevels` (how many other levels the
+generator found at the same search depth) and the tie-breaking `Random(0,
+300)` jitter (fixed at `0` by `sokoban/cli/score-microban.ts` for a
+reproducible report). Both are exposed as explicit parameters rather than
+defaulted away, so Phase 5's generator can supply real values once it
+exists.
+
+### 4.3 Calibration against Microban
+
+`node sokoban/cli/score-microban.ts fixtures/microban/m1.txt --timeout 8000`
+scores every level Phase 3 already found solvable (141/155), using each
+level's push-optimal solution for `pushes`/`lines`, `siblingLevels: 0`, and
+`random: 0` (per 4.2's limitations).
+
+| | value |
+|---|---|
+| Scored (solved) levels | 141 |
+| Accepted (`score > 0`) | 123 (87%) |
+| Rejected | 18 |
+| Score range | -7800 to 24430 |
+| Mean / median | 5038 / 4010 |
+| Trapped-box count among solved levels | 0 |
+
+The paper's weights (100 / 4 / -12, and the touching constants) work
+reasonably as-is on Microban -- no recalibration was needed. Every
+rejection is a many-box level where `-12*boxes` dominates a comparatively
+low push/line count (e.g. level 107: 11 boxes, 10 pushes, 8 lines, score
+-7800), which is exactly the tradeoff the paper describes wanting ("the
+number of lines needs to exceed the number of boxes by a certain factor for
+the level to have a better chance of being a good level"). Zero trapped
+boxes among solved levels is the expected sanity check, not a finding: a
+genuinely frozen box would make the level unsolvable, and Phase 3 already
+confirmed the solver has no false-negative solvability bugs left, so this
+number should be (and is) zero. No level's fate flips on the touching
+bonuses/penalties alone -- they shift scores by a few hundred points against
+a formula whose base term spans tens of thousands.
+
+**Sign-off note for Phase 5**: this calibration is against imported,
+human-designed levels scored in isolation (`siblingLevels: 0`), not
+generator output scored within a batch. It establishes that the formula
+produces a sane, non-degenerate spread (not all-accept, not all-reject) on
+real data -- it does not yet prove the weights are right for comparing
+sibling levels from the same generation run, which can only be checked once
+Phase 5 exists.
 
 ## Phase 3: Microban validation gate
 
@@ -418,8 +517,9 @@ sokoban/
     tunnel.ts          no-influence-push / tunnel macro detection
   heuristic.ts         per-goal push-distance tables, Hungarian matching lower bound
   solver.ts            pushOptimalAStar() — CLI-facing solve(board, state, opts)
-  metrics.ts           box_lines/box_changes/pushing_sessions/congestion/
-                       forced_ratio, structural checks, scoring function
+  metrics.ts           box lines/box changes (Phase 4 note: the only two
+                       per-solution metrics Taylor–Parberry actually define),
+                       touching/trapped checks, scoring function
   rng.ts               seeded PRNG (mulberry32), no crypto dependency
   generator.ts         Taylor–Parberry room templates, goal placement,
                        reverse "farthest state" search
@@ -468,10 +568,12 @@ this note just confirms against the source:
    run in reverse, not a separate implementation.
 
 Their scoring formula (`100·(pushes − sibling_levels + 4·lines − 12·boxes) +
-random jitter`, with hard penalties for trapped boxes, walls/boxes/players
-touching, etc.) is a *starting point* for Phase 4, not something to copy
-uncritically — the brief requires calibrating weights against Microban's
-actual score distribution and getting sign-off before Phase 5 uses them.
+random jitter`, with a hard penalty for a trapped box and mixed-sign
+adjustments for walls/boxes/players/goals touching — see Phase 4's §4.2 for
+the exact, corrected signs) was implemented and calibrated against Microban
+in Phase 4 (§4.3): the paper's weights held up without adjustment, so
+Phase 5 can use them as-is, with the sign-off caveat noted there about
+`siblingLevels` only being testable once a generator batch exists.
 
 ## 8. Open questions / things to confirm before Phase 1 code
 
