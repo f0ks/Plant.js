@@ -27,6 +27,7 @@
   "author": "Albert Khamidullin",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^26.4.1",
     "typescript": "^5.8.2",
     "vite": "^6.2.4",
     "vitest": "^4.1.2"

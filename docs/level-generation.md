@@ -1,6 +1,35 @@
-# Sokoban Level Generation — Design Note (Phase 0)
+# Sokoban Level Generation — Design Note
 
-Status: draft, pending sign-off. Written before any generator/solver code exists.
+Status: Phases 0-2 complete (design note, XSB/board/state core, and the
+push-optimal solver with all four planned deadlock/pruning techniques).
+Not yet started: Phase 3 (Microban validation gate), Phase 4 (metrics and
+scoring calibration), Phase 5 (the generator itself), Phase 6 (integration).
+
+## Phase 2 scoping decisions (recorded here per §6's promise to update this note)
+
+Two deliberate scope cuts, both performance-only (neither affects
+correctness — the solver's push-optimality guarantee doesn't depend on
+either):
+
+- **Corral detection does not combine adjacent corrals into multi-room
+  PI-corrals.** `sokoban/deadlock/corral.ts` finds single connected
+  unreachable regions only. The wiki notes multi-room combination matters
+  "rather" often in practice; `findCorrals`/`isPICorral` are implemented and
+  tested as sound standalone building blocks, so this is a bounded
+  follow-up if Phase 3 timing shows it's needed, not a redesign.
+- **Tunnel "no-influence push" detection (`sokoban/deadlock/tunnel.ts`) is
+  implemented and tested but not wired into `solver.ts`'s search loop.**
+  It's available (`isNoInfluencePush`) for a future search-macro pass. Given
+  the choice between rushing a change into the A* successor-generation loop
+  (real risk of a subtle push-optimality bug in the load-bearing part of
+  this project) versus shipping it as a verified-correct, ready-to-integrate
+  module, I chose the latter. Whether it's worth the integration risk is a
+  question Phase 3's actual timing data should answer, not a guess made now.
+
+Everything else from the original plan — static dead squares, freeze
+deadlocks (including the recursive frozen-box case), PI-corral pruning
+(single-region), and the Hungarian-matching heuristic/bipartite-deadlock
+check — is implemented, tested, and wired into `solve()`.
 
 ## 1. Orientation: current state of the repo
 

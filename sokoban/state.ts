@@ -1,5 +1,5 @@
-import type { Board } from "./board";
-import { computeReachable } from "./reachability";
+import type { Board } from "./board.ts";
+import { computeReachable } from "./reachability.ts";
 
 /**
  * A search-node state: the player's position and the multiset of box

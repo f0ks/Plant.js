@@ -1,5 +1,5 @@
-import type { State } from "./state";
-import { sortedBoxes } from "./state";
+import type { State } from "./state.ts";
+import { sortedBoxes } from "./state.ts";
 
 /** Cell index = y * width + x. */
 export interface Board {
