@@ -85,8 +85,10 @@ at each room size, before Task 4 was implemented:
 At `buildRoom`'s default `maxAttempts = 300`, the probability of every
 attempt failing at the 2×2 default is `0.89^300 ≈ 0` in theory; Task 4's own
 test checks this empirically rather than trusting the math alone
-(`sokoban/__tests__/generator.test.ts`: ≥48/50 seeds succeed within budget
-at 2×2 — actual result was 48/50).
+(`sokoban/__tests__/generator.test.ts`: asserts at least 48/50 seeds
+succeed within budget at 2×2, a threshold rather than a tight bound — in
+practice, running the same computation for seeds 1-50 gives 50/50
+successes).
 
 **Actual end-to-end smoke test**, run against the built repo (not
 predicted numbers):
