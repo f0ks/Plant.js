@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildBoard } from "../board";
 import type { Board } from "../board";
-import { DIRECTIONS, isLegalPush, applyPush, legalPushes, stateKey } from "../state";
+import { DIRECTIONS, isLegalPush, applyPush, legalPushes, stateKey, legalPulls, applyPull, isLegalPull } from "../state";
 import type { State } from "../state";
 import { computeReachable } from "../reachability";
 
@@ -214,5 +214,44 @@ describe("state normalization property", () => {
         expect(stateKey(board, alt)).toBe(baseKey);
       }
     }
+  });
+});
+
+describe("legalPulls / applyPull", () => {
+  it("applyPull exactly undoes applyPush for every legal push in a test room", () => {
+    // A small open room with a couple of boxes so there are several
+    // distinct legal pushes to check, not just one.
+    const { board, state } = buildBoard(["######", "#@$ $#", "#  # #", "######"]);
+
+    const pushes = legalPushes(board, state);
+    expect(pushes.length).toBeGreaterThan(0);
+
+    for (const push of pushes) {
+      const pushed = applyPush(board, state, push.box, push.direction);
+      // The box that moved is now at `push.box + direction`; pulling that
+      // box back in the same direction should reconstruct `state` exactly.
+      const movedBoxCell = pushed.boxes.find((b) => !state.boxes.includes(b))!;
+      expect(isLegalPull(board, pushed, movedBoxCell, push.direction)).toBe(true);
+
+      const undone = applyPull(board, pushed, movedBoxCell, push.direction);
+      expect(undone.boxes).toEqual(state.boxes);
+      expect(undone.player).toBe(state.player);
+    }
+  });
+
+  it("legalPulls finds no pulls when the player isn't adjacent to any box's push-origin side", () => {
+    const { board, state } = buildBoard(["#####", "#@ .#", "#####"]);
+    expect(legalPulls(board, state)).toEqual([]);
+  });
+
+  it("legalPulls requires the player's landing cell to be open floor", () => {
+    // Player boxed in against a wall behind it: pulling would require
+    // stepping through the wall, so no pull should be offered in that
+    // direction.
+    const { board, state } = buildBoard(["#####", "#@$ #", "#####"]);
+    const pulls = legalPulls(board, state);
+    // player at (1,1), box at (2,1): pulling right would need player to
+    // step to (0,1), which is a wall.
+    expect(pulls.some((p) => p.direction.dx === 1 && p.direction.dy === 0)).toBe(false);
   });
 });

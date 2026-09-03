@@ -111,6 +111,89 @@ export function legalPushes(board: Board, state: State): Push[] {
 }
 
 /**
+ * One pull, the reverse-search analogue of `Push`: `box` is the box's cell
+ * in the *source* state (the state being pulled from), `direction` is the
+ * push direction this pull undoes (the box and player both move by
+ * `-direction`), and `state` is the resulting predecessor state.
+ */
+export interface Pull {
+  box: number;
+  direction: Direction;
+  state: State;
+}
+
+/**
+ * Is pulling the box at `box` legal in `state`, undoing a push in
+ * `direction`? Derived directly from `isLegalPush`'s own contract: a push
+ * of direction `d` requires the player at `box - d` before and leaves it at
+ * `box` after, with the box moving to `box + d`. Inverting that: a pull
+ * undoing direction `d` requires the box currently at `box` with the player
+ * already at `box - d` (as if it had just performed that push), and moves
+ * the box to the player's current cell while the player steps back to
+ * `box - 2d` — which must be open floor, not a wall, and not occupied by
+ * another box.
+ */
+export function isLegalPull(
+  board: Board,
+  state: State,
+  box: number,
+  direction: Direction,
+): boolean {
+  const p = step(board, box, { dx: -direction.dx, dy: -direction.dy });
+  if (p === null || p !== state.player) return false;
+
+  const playerDestination = step(board, p, { dx: -direction.dx, dy: -direction.dy });
+  if (playerDestination === null) return false;
+  if (board.walls[playerDestination] || !board.floor[playerDestination]) return false;
+  if (state.boxes.includes(playerDestination)) return false;
+
+  return true;
+}
+
+/** Applies a legal pull, returning the resulting (predecessor) state. Throws if illegal. */
+export function applyPull(
+  board: Board,
+  state: State,
+  box: number,
+  direction: Direction,
+): State {
+  if (!isLegalPull(board, state, box, direction)) {
+    throw new Error(
+      `applyPull: illegal pull of box ${box} undoing direction (${direction.dx}, ${direction.dy})`,
+    );
+  }
+  const player = state.player;
+  const playerDestination = step(board, player, { dx: -direction.dx, dy: -direction.dy })!;
+  const boxes = sortedBoxes(state.boxes.map((b) => (b === box ? player : b)));
+  return { boxes, player: playerDestination };
+}
+
+/**
+ * All pulls available to the player from `state` — the reverse-search
+ * analogue of `legalPushes`, used by `generator.ts`'s farthest-state BFS
+ * (Task 6). For every box the player can reach the "just pushed it from
+ * here" side of, in every direction that results in a legal pull.
+ */
+export function legalPulls(board: Board, state: State): Pull[] {
+  const reachable = computeReachable(board, state.boxes, state.player);
+  const pulls: Pull[] = [];
+
+  for (const box of state.boxes) {
+    for (const direction of Object.values(DIRECTIONS)) {
+      const p = step(board, box, { dx: -direction.dx, dy: -direction.dy });
+      if (p === null || !reachable[p]) continue;
+      if (!isLegalPull(board, { ...state, player: p }, box, direction)) continue;
+
+      const playerDestination = step(board, p, { dx: -direction.dx, dy: -direction.dy })!;
+      const boxes = sortedBoxes(state.boxes.map((b) => (b === box ? p : b)));
+      pulls.push({ box, direction, state: { boxes, player: playerDestination } });
+    }
+  }
+
+  return pulls;
+}
+
+/**
  * Canonical dedup key for a state: the sorted box multiset plus a
  * normalized representative of the player's reachable region (its minimum
  * cell index), per the "normalizing the player position" technique — two
