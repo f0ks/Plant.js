@@ -1,9 +1,180 @@
 # Sokoban Level Generation — Design Note
 
-Status: Phases 0-4 complete (design note, XSB/board/state core, the
+Status: Phases 0-5 complete (design note, XSB/board/state core, the
 push-optimal solver with all four planned deadlock/pruning techniques, the
-Microban validation gate, and metrics/scoring calibration). Not yet started:
-Phase 5 (the generator itself), Phase 6 (integration).
+Microban validation gate, metrics/scoring calibration, and the generator
+itself). Not yet started: Phase 6 (integration).
+
+## Phase 5: the generator
+
+### 5.1 Pull mechanics: derived algebraically from `applyPush`'s exact inverse
+
+`state.ts`'s `applyPush(board, state, box, direction)` requires the player at
+`box - direction` before the push and leaves it at `box` (the box's old
+cell) afterward, with the box now at `box + direction`. Inverting this:
+`isLegalPull`/`applyPull` (`sokoban/state.ts`) require the box currently at
+`box` with the player already at `box - direction` (as if it had just
+pushed), move the box to the player's current cell, and step the player back
+to `box - 2*direction` — which must be open floor, not a wall, and not
+occupied by another box. `legalPulls` is the reverse-search analogue of
+`legalPushes`: for every box the player can reach the "just pushed it from
+here" side of, in every direction that yields a legal pull.
+
+This isn't just asserted — `sokoban/__tests__/pushes.test.ts`, "applyPull
+exactly undoes applyPush for every legal push in a test room", replays every
+legal push in a fixture room and confirms `applyPull` on the resulting state
+reconstructs the exact original state.
+
+### 5.2 Farthest-state search reuses `stateKey` for dedup — and why that's sound
+
+`findFarthestState` (`sokoban/generator.ts`) is a layered BFS over
+`legalPulls`, starting at the "boxes on goals" state and searching outward.
+It dedups visited states with the same `stateKey` normalization
+(sorted box multiset + player-reachable-region representative) the forward
+solver already uses. This is sound for the same reason it's sound in
+`solver.ts`: the pull-graph is the *exact edge-reversal* of the push-graph,
+so BFS shortest-path distance in the pull-graph from the goal state to any
+state `S` equals `S`'s push-optimal solve distance back to the goal — a
+property that only holds because Phase 3's Microban gate already proved the
+underlying normalization correct for the forward direction. No new
+dedup logic was needed or written; `generator.ts` imports `stateKey`
+directly from `state.ts`.
+
+The farthest node's solution is reconstructed by `reconstructPullSolution`,
+which walks the winning `PullNode` chain back to the root and replays each
+pull as its corresponding forward push (walk-to-position + uppercase push
+letter) — this is the string `cli/gen.ts` records as `distance`/`pushes`
+and that `solve()` cross-validates against in
+`sokoban/__tests__/generator.test.ts` (`solved.pushes === result.distance`
+passed on the first implementation attempt, no pull-algebra debugging
+needed).
+
+### 5.3 `siblingLevels` is finally computable
+
+Taylor & Parberry §3.3's `siblingLevels` term — left as a forced `0`
+placeholder in Phase 4 because no generator existed yet to produce it — is
+now real: `findFarthestState` naturally visits multiple states tied at the
+maximum pull-distance, and reservoir-samples among them (uniform,
+reproducible per seed) for the state it returns. The count of *other*
+states tied with the chosen one at that same maximum distance is exactly
+"how many other levels the generator found at the same search depth",
+exposed as `FarthestStateResult.siblingLevels` and threaded unchanged
+through `GeneratedLevel.siblingLevels` (Task 7) into `cli/gen.ts`'s
+`score()` call (Task 8).
+
+`sokoban/cli/score-microban.ts` is deliberately left as-is, still passing
+`siblingLevels: 0`. That's correct there, not a leftover gap: Microban
+levels are imported, human-designed levels scored in isolation, not
+generator output from a search batch — they have no "search depth" to be
+siblings within, so `0` is the right value for that CLI, not a placeholder
+waiting to be filled in.
+
+### 5.4 Room-generation success rates and the end-to-end smoke test
+
+**Empirical success-rate table**, measured by a throwaway prototype of the
+exact template set and validators (`buildRoom`'s 8 fixed 3×3 wall/floor
+templates, connectivity/openness/nook checks) run for 2000 seeded attempts
+at each room size, before Task 4 was implemented:
+
+| blocks | per-attempt success rate |
+|---|---|
+| 2×2 | 11.0% |
+| 3×2 | 4.2% |
+| 3×3 | 1.1% |
+
+At `buildRoom`'s default `maxAttempts = 300`, the probability of every
+attempt failing at the 2×2 default is `0.89^300 ≈ 0` in theory; Task 4's own
+test checks this empirically rather than trusting the math alone
+(`sokoban/__tests__/generator.test.ts`: ≥48/50 seeds succeed within budget
+at 2×2 — actual result was 48/50).
+
+**Actual end-to-end smoke test**, run against the built repo (not
+predicted numbers):
+
+```
+$ node sokoban/cli/gen.ts batch --count 20 --seed 1 --box-count 3 --block-cols 2 --block-rows 2 --out levels.jsonl
+{"requested":20,"generated":20,"attempts":20}
+$ echo $?
+0
+```
+
+All 20 requested levels were produced on the first attempt each (`attempts`
+equals `generated` equals `requested` — no room/goal/farthest-state failures
+in this run at the 2×2 default). Of the 20 generated levels, 10 were
+`accepted` (`score > 0`) and 10 were rejected; scores ranged from -1350 to
+3960 across all 20, and 460 to 3960 among the accepted ones. Two real
+values: the top-ranked level (seed 1, attempt 17) scored 3960 with 19
+pushes / 15 box lines / 3 boxes; a rejected level (seed 1, attempt 1) scored
+-400 with 10 pushes / 7 box lines / 3 boxes / 1 sibling.
+
+`node sokoban/cli/render.ts levels.jsonl --top 5` printed five ranked,
+readable XSB levels, highest score first, e.g. the top-ranked one:
+
+```
+; rank 1  score 3960  pushes 19  lines 15  boxes 3  seed 1 attempt 17
+; generated seed=1 attempt=17
+########
+# .#@  #
+#  #*$ #
+#    ###
+#      #
+# #.$  #
+#   #  #
+########
+```
+
+Read by eye: an 8×8 room fully enclosed by a `#` border, 3 goals (`.`, plus
+one already-matched `*`), 3 boxes (`$`/`*`), and a player (`@`) — a real,
+closed Sokoban room, not degenerate output.
+
+### 5.5 Goal-spacing rule: `MIN_GOAL_SPACING = 2` (Chebyshev)
+
+`placeGoals` (`sokoban/generator.ts`) keeps every pair of placed goals at
+least `MIN_GOAL_SPACING = 2` cells apart by Chebyshev distance. This is this
+implementation's own documented choice, not something the source material
+specifies beyond "brute-force search over goal-position combinations" —
+without it, randomized placement tends to clump goals together, leaving the
+reverse farthest-state search little room to spread boxes out into a
+non-degenerate level. Search is randomized (seed-shuffled floor-cell order,
+first spaced-out combination accepted) rather than true combinatorial brute
+force, which is intractable for anything but a tiny floor — consistent with
+§7's "seed-shuffle the search order for reproducibility" framing.
+
+### 5.6 `cli/render.ts` invocation correction
+
+§6's module-layout line originally showed `render.ts` invoked as `node
+sokoban/cli/gen.ts render levels.jsonl --top 50` — a `gen.ts` subcommand —
+while listing it as its own file under `cli/`. That was a typo/inconsistency
+in the original design note, caught during Task 9: `render.ts` is its own
+CLI entry point, invoked directly as `node sokoban/cli/render.ts
+levels.jsonl --top 50`. §6 below is corrected to match; the smoke test in
+5.4 above used the corrected form.
+
+### 5.7 A minor plan-execution note
+
+One thing worth recording for completeness, distinct from the design
+decisions above: Task 6's plan brief shipped a `findFarthestState` test
+fixture (`sokoban/__tests__/generator.test.ts`) whose room rows had no `@`
+player marker, which `buildBoard` rejects outright (`"buildBoard: level has
+no player"`). The tests construct their own synthetic `goalState` and never
+read `buildBoard`'s returned player position, so this was a harmless
+fixture bug, not an algorithm bug — fixed by adding `@` to a free interior
+cell in the three affected fixtures. No production code was affected.
+
+### 5.8 Known limitations / future work
+
+- **Larger rooms have low per-attempt success rates and aren't tuned
+  further in this phase.** The 5.4 table shows 3×2 (4.2%) and 3×3+ (1.1%,
+  falling further for bigger grids) succeed far less often per attempt than
+  the 2×2 default; the retry loop still converges given enough attempts, but
+  the template mix itself isn't re-tuned for larger rooms here, same spirit
+  as Phase 3's two documented scope cuts.
+- **No upper bound is enforced on `boxCount`** beyond whatever `placeGoals`'s
+  spacing constraint can actually fit on the generated room. Taylor &
+  Parberry's own generator "explodes" past roughly 6 boxes (per Phase 0's
+  reading of the paper); this implementation hasn't been stress-tested past
+  the smoke test's `--box-count 3` — worth doing before Phase 6 if it needs
+  bigger levels.
 
 ## Phase 4: metrics and scoring calibration
 
@@ -526,7 +697,10 @@ sokoban/
   cli/
     solve.ts           node sokoban/cli/solve.ts solve <file.xsb> --json
     gen.ts             node sokoban/cli/gen.ts batch --count N --seed S ... --out levels.jsonl
-    render.ts          node sokoban/cli/gen.ts render levels.jsonl --top 50
+    render.ts          node sokoban/cli/render.ts levels.jsonl --top 50
+                       (its own entry point, not a gen.ts subcommand --
+                       corrected from this line's original text; see
+                       Phase 5 §5.6)
   tsconfig.json         separate from the engine's tsconfig (Node lib, no DOM)
   __tests__/
     xsb.test.ts, state.test.ts, solver.test.ts, deadlock.test.ts,
