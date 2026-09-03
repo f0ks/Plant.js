@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../rng";
-import { buildRoom } from "../generator";
+import { buildRoom, placeGoals } from "../generator";
 import { computeReachable } from "../reachability";
 
 describe("buildRoom", () => {
@@ -54,5 +54,47 @@ describe("buildRoom", () => {
         if (room.floor[i] && !room.walls[i]) expect(reachable[i]).toBe(1);
       }
     }
+  });
+});
+
+describe("placeGoals", () => {
+  it("returns boxCount distinct floor cells, sorted", () => {
+    const room = buildRoom(mulberry32(1), 2, 2, 300)!;
+    const goals = placeGoals(room, 3, mulberry32(2));
+    expect(goals).not.toBeNull();
+    const g = goals!;
+    expect(g.length).toBe(3);
+    expect(new Set(g).size).toBe(3);
+    expect([...g].sort((a, b) => a - b)).toEqual(g);
+    for (const cell of g) {
+      expect(room.floor[cell]).toBe(1);
+      expect(room.walls[cell]).toBe(0);
+    }
+  });
+
+  it("keeps every pair of goals at Chebyshev distance >= 2", () => {
+    const room = buildRoom(mulberry32(3), 2, 2, 300)!;
+    const goals = placeGoals(room, 3, mulberry32(4))!;
+    const cellXY = (c: number) => [c % room.width, (c - (c % room.width)) / room.width];
+    for (let i = 0; i < goals.length; i++) {
+      for (let j = i + 1; j < goals.length; j++) {
+        const [ax, ay] = cellXY(goals[i]);
+        const [bx, by] = cellXY(goals[j]);
+        expect(Math.max(Math.abs(ax - bx), Math.abs(ay - by))).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it("returns null when boxCount exceeds the floor cell count", () => {
+    const room = buildRoom(mulberry32(1), 2, 2, 300)!;
+    const floorCount = room.floor.reduce((sum, f, i) => sum + (f && !room.walls[i] ? 1 : 0), 0);
+    expect(placeGoals(room, floorCount + 1, mulberry32(1))).toBeNull();
+  });
+
+  it("is deterministic for a fixed seed", () => {
+    const room = buildRoom(mulberry32(1), 2, 2, 300)!;
+    const a = placeGoals(room, 3, mulberry32(9));
+    const b = placeGoals(room, 3, mulberry32(9));
+    expect(a).toEqual(b);
   });
 });

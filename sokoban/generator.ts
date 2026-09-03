@@ -1,7 +1,8 @@
 import type { Board } from "./board.ts";
 import { computeReachable } from "./reachability.ts";
 import type { Rng } from "./rng.ts";
-import { randomInt } from "./rng.ts";
+import { randomInt, shuffle } from "./rng.ts";
+import { sortedBoxes } from "./state.ts";
 
 const BLOCK_SIZE = 3;
 
@@ -186,6 +187,66 @@ export function buildRoom(
     const rows = wrapWithBorder(interior);
     const board = rowsToRoomBoard(rows);
     if (isValidRoom(board)) return board;
+  }
+  return null;
+}
+
+const MIN_GOAL_SPACING = 2; // Chebyshev distance
+
+function cellXY(board: Board, cell: number): [number, number] {
+  const x = cell % board.width;
+  const y = (cell - x) / board.width;
+  return [x, y];
+}
+
+function chebyshevDistance(board: Board, a: number, b: number): number {
+  const [ax, ay] = cellXY(board, a);
+  const [bx, by] = cellXY(board, b);
+  return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+}
+
+function isSpacedOut(board: Board, cells: readonly number[]): boolean {
+  for (let i = 0; i < cells.length; i++) {
+    for (let j = i + 1; j < cells.length; j++) {
+      if (chebyshevDistance(board, cells[i], cells[j]) < MIN_GOAL_SPACING) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Places `boxCount` goals on distinct floor cells, at least
+ * `MIN_GOAL_SPACING` apart (Chebyshev distance) so the reverse
+ * farthest-state search (Task 6) has room to spread boxes out instead of
+ * starting from a degenerate clump. This spacing rule is this
+ * implementation's own choice, not something docs/level-generation.md's
+ * source material specified beyond "brute-force search over goal-position
+ * combinations" — see the plan's Design notes.
+ *
+ * Randomized rather than a true combinatorial brute force (which is
+ * intractable for anything but a tiny floor), per the doc's own "seed-
+ * shuffle the search order for reproducibility and stop at the first
+ * accepted arrangement" framing: each attempt reshuffles the floor-cell
+ * list (consuming further `rng` state, so attempts differ and the whole
+ * search is reproducible per seed) and takes the first `boxCount` cells.
+ */
+export function placeGoals(
+  board: Board,
+  boxCount: number,
+  rng: Rng,
+  options: { maxAttempts?: number } = {},
+): number[] | null {
+  const maxAttempts = options.maxAttempts ?? 500;
+
+  const floorCells: number[] = [];
+  for (let i = 0; i < board.floor.length; i++) {
+    if (board.floor[i] && !board.walls[i]) floorCells.push(i);
+  }
+  if (floorCells.length < boxCount) return null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const candidate = shuffle(rng, floorCells).slice(0, boxCount);
+    if (isSpacedOut(board, candidate)) return sortedBoxes(candidate);
   }
   return null;
 }
