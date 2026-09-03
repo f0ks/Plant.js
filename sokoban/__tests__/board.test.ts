@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildBoard } from "../board";
+import { buildBoard, boardToRows } from "../board";
 
 describe("buildBoard", () => {
   it("builds walls, floor and dimensions from a simple grid", () => {
@@ -66,5 +66,25 @@ describe("buildBoard", () => {
 
   it("throws on an unrecognized character", () => {
     expect(() => buildBoard(["#####", "#@X.#", "#####"])).toThrow();
+  });
+});
+
+describe("boardToRows", () => {
+  it("round-trips through buildBoard for every XSB element", () => {
+    const original = ["######", "#@$*.#", "#  #  ".slice(0, 6), "######"];
+    const { board, state } = buildBoard(original);
+    const rows = boardToRows(board, state);
+    const { board: board2, state: state2 } = buildBoard(rows);
+
+    expect(board2.walls).toEqual(board.walls);
+    expect(board2.goals).toEqual(board.goals);
+    expect(state2.boxes).toEqual(state.boxes);
+    expect(state2.player).toBe(state.player);
+  });
+
+  it("renders player-on-goal as '+' and box-on-goal as '*'", () => {
+    const { board, state } = buildBoard(["#####", "#+*.#", "#####"]);
+    const rows = boardToRows(board, state);
+    expect(rows[1]).toBe("#+*.#");
   });
 });

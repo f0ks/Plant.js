@@ -86,3 +86,38 @@ export function buildBoard(rows: string[]): { board: Board; state: State } {
   const state: State = { boxes: sortedBoxes(boxes), player };
   return { board, state };
 }
+
+/**
+ * Inverse of `buildBoard`: renders a `Board` + `State` back to XSB grid
+ * rows. Always emits full-width rows (no ragged trailing floor), which is
+ * valid XSB and round-trips losslessly through `buildBoard` (padding is
+ * idempotent — see the round-trip test in `board.test.ts`).
+ */
+export function boardToRows(board: Board, state: State): string[] {
+  const boxSet = new Set(state.boxes);
+  const rows: string[] = [];
+
+  for (let y = 0; y < board.height; y++) {
+    let row = "";
+    for (let x = 0; x < board.width; x++) {
+      const idx = y * board.width + x;
+      if (board.walls[idx]) {
+        row += WALL;
+        continue;
+      }
+      const isGoal = board.isGoal[idx] === 1;
+      const isBox = boxSet.has(idx);
+      const isPlayer = idx === state.player;
+
+      if (isPlayer && isGoal) row += PLAYER_ON_GOAL;
+      else if (isPlayer) row += PLAYER;
+      else if (isBox && isGoal) row += BOX_ON_GOAL;
+      else if (isBox) row += BOX;
+      else if (isGoal) row += GOAL;
+      else row += " ";
+    }
+    rows.push(row);
+  }
+
+  return rows;
+}
