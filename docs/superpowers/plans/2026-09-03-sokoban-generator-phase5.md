@@ -270,13 +270,22 @@ EOF
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `sokoban/__tests__/pushes.test.ts` (check its existing imports
-first and extend them rather than duplicating; it already imports from
-`"../state"` and `"../board"`):
+Append to `sokoban/__tests__/pushes.test.ts`. This file's existing line 4
+already reads:
+```ts
+import { DIRECTIONS, isLegalPush, applyPush, legalPushes, stateKey } from "../state";
+```
+Change that line to add the three new names — do not add a second, separate
+`import ... from "../state"` statement (that would redeclare `applyPush`/
+`legalPushes` and fail to compile):
+```ts
+import { DIRECTIONS, isLegalPush, applyPush, legalPushes, stateKey, legalPulls, applyPull, isLegalPull } from "../state";
+```
+
+Then append this new `describe` block at the end of the file (`buildBoard`
+is already imported on line 2 — no change needed there):
 
 ```ts
-import { legalPulls, applyPull, isLegalPull, applyPush, legalPushes } from "../state";
-
 describe("legalPulls / applyPull", () => {
   it("applyPull exactly undoes applyPush for every legal push in a test room", () => {
     // A small open room with a couple of boxes so there are several
@@ -288,7 +297,6 @@ describe("legalPulls / applyPull", () => {
 
     for (const push of pushes) {
       const pushed = applyPush(board, state, push.box, push.direction);
-      const destination = pushed.player; // player ends where the box used to be... no: ends where box WAS, i.e. at `push.box`
       // The box that moved is now at `push.box + direction`; pulling that
       // box back in the same direction should reconstruct `state` exactly.
       const movedBoxCell = pushed.boxes.find((b) => !state.boxes.includes(b))!;
@@ -583,6 +591,7 @@ EOF
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../rng";
 import { buildRoom } from "../generator";
+import { computeReachable } from "../reachability";
 
 describe("buildRoom", () => {
   it("produces a board fully enclosed by walls at the requested size", () => {
@@ -623,7 +632,6 @@ describe("buildRoom", () => {
   });
 
   it("every produced room has fully connected floor, no oversized open rectangle, and no three-sided nook", () => {
-    const { computeReachable } = require("../reachability") as typeof import("../reachability");
     for (let seed = 1; seed <= 20; seed++) {
       const room = buildRoom(mulberry32(seed), 2, 2, 300);
       if (room === null) continue;
@@ -885,11 +893,17 @@ EOF
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `sokoban/__tests__/generator.test.ts`:
+`sokoban/__tests__/generator.test.ts` already has, from Task 4:
+`import { buildRoom } from "../generator";`. Change that line to add
+`placeGoals` — do not add a second `import ... from "../generator"`
+statement (it would redeclare `buildRoom`):
+```ts
+import { buildRoom, placeGoals } from "../generator";
+```
+
+Then append this block to the end of the file:
 
 ```ts
-import { placeGoals, buildRoom } from "../generator";
-
 describe("placeGoals", () => {
   it("returns boxCount distinct floor cells, sorted", () => {
     const room = buildRoom(mulberry32(1), 2, 2, 300)!;
@@ -1054,10 +1068,18 @@ EOF
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `sokoban/__tests__/generator.test.ts`:
+`sokoban/__tests__/generator.test.ts` already has, from Task 5:
+`import { buildRoom, placeGoals } from "../generator";`. Change that line to
+add `findFarthestState` — do not add a second `import ... from "../generator"`
+statement:
+```ts
+import { buildRoom, placeGoals, findFarthestState } from "../generator";
+```
+
+Then add these new imports (none of these three names exist in the file
+yet) and append the test block to the end of the file:
 
 ```ts
-import { findFarthestState } from "../generator";
 import { buildBoard } from "../board";
 import { solve } from "../solver";
 import { sortedBoxes } from "../state";
@@ -1349,12 +1371,20 @@ EOF
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `sokoban/__tests__/generator.test.ts`:
+`sokoban/__tests__/generator.test.ts` already has, from Task 6:
+`import { buildRoom, placeGoals, findFarthestState } from "../generator";`
+and `import { solve } from "../solver";`. Change the first to add
+`generateLevel` — do not add a second `import ... from "../generator"`
+statement, and do not re-import `solve` (already present from Task 6):
+```ts
+import { buildRoom, placeGoals, findFarthestState, generateLevel } from "../generator";
+```
+
+Then add this one new import (`validateStructure` doesn't exist in the file
+yet) and append the test block to the end of the file:
 
 ```ts
-import { generateLevel } from "../generator";
 import { validateStructure } from "../validate";
-import { solve } from "../solver";
 
 describe("generateLevel", () => {
   it("produces a structurally valid, solvable level whose optimal solve distance matches its recorded distance", () => {
