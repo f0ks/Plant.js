@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../rng";
-import { buildRoom, placeGoals } from "../generator";
+import { buildRoom, placeGoals, findFarthestState } from "../generator";
 import { computeReachable } from "../reachability";
+import { buildBoard } from "../board";
+import { solve } from "../solver";
+import { sortedBoxes } from "../state";
 
 describe("buildRoom", () => {
   it("produces a board fully enclosed by walls at the requested size", () => {
@@ -96,5 +99,72 @@ describe("placeGoals", () => {
     const a = placeGoals(room, 3, mulberry32(9));
     const b = placeGoals(room, 3, mulberry32(9));
     expect(a).toEqual(b);
+  });
+});
+
+describe("findFarthestState", () => {
+  it("returns distance 0 (the goal state itself) when no pulls are available", () => {
+    // Box already on its only goal, wedged in a 1-wide dead end: the only
+    // candidate pull direction needs the player to step back into a wall,
+    // so no legal pull exists.
+    const { board, state } = buildBoard(["####", "#@*#", "####"]);
+    const goalState = { boxes: state.boxes, player: state.player };
+    const result = findFarthestState(board, goalState, mulberry32(1));
+    expect(result.distance).toBe(0);
+    expect(result.solution).toBe("");
+  });
+
+  it("finds a state whose optimal solve distance (via the existing solver) matches the search's own distance", () => {
+    // A room with enough space for the box to be pulled several times.
+    const { board } = buildBoard(["#######", "#@    #", "#     #", "#  .  #", "#     #", "#     #", "#######"]);
+    const goalIdx = board.goals[0];
+    // goals[] is empty here since '.' inside buildBoard already registers
+    // it -- use board.goals as the single-goal, single-box goal state.
+    const goalState = { boxes: sortedBoxes([goalIdx]), player: goalIdx - board.width }; // any adjacent free cell
+
+    const result = findFarthestState(board, goalState, mulberry32(5), { maxNodes: 2000, timeoutMs: 2000 });
+    expect(result.distance).toBeGreaterThan(0);
+
+    const solved = solve(board, result.state, { timeoutMs: 5000 });
+    expect(solved.solvable).toBe(true);
+    expect(solved.pushes).toBe(result.distance);
+  });
+
+  it("the reconstructed solution string, replayed by hand, actually solves the level", () => {
+    const { board } = buildBoard(["#######", "#@    #", "#     #", "#  .  #", "#     #", "#     #", "#######"]);
+    const goalIdx = board.goals[0];
+    const goalState = { boxes: sortedBoxes([goalIdx]), player: goalIdx - board.width };
+    const result = findFarthestState(board, goalState, mulberry32(6), { maxNodes: 2000, timeoutMs: 2000 });
+    expect(result.distance).toBeGreaterThan(0);
+
+    // Replay result.solution against result.state by hand (independent of
+    // solve()'s own machinery) and check every box ends on a goal.
+    const DIRS: Record<string, { dx: number; dy: number }> = {
+      u: { dx: 0, dy: -1 }, d: { dx: 0, dy: 1 }, l: { dx: -1, dy: 0 }, r: { dx: 1, dy: 0 },
+    };
+    let player = result.state.player;
+    let boxes = [...result.state.boxes];
+    for (const ch of result.solution) {
+      const dir = DIRS[ch.toLowerCase()];
+      const x = player % board.width, y = (player - x) / board.width;
+      const target = (y + dir.dy) * board.width + (x + dir.dx);
+      const boxIndex = boxes.indexOf(target);
+      if (boxIndex === -1) { player = target; continue; }
+      const bx = target % board.width, by = (target - bx) / board.width;
+      const destination = (by + dir.dy) * board.width + (bx + dir.dx);
+      boxes[boxIndex] = destination;
+      player = target;
+    }
+    expect(boxes.every((b) => board.isGoal[b] === 1)).toBe(true);
+  });
+
+  it("is deterministic for a fixed seed", () => {
+    const { board } = buildBoard(["#######", "#@    #", "#     #", "#  .  #", "#     #", "#     #", "#######"]);
+    const goalIdx = board.goals[0];
+    const goalState = { boxes: sortedBoxes([goalIdx]), player: goalIdx - board.width };
+    const a = findFarthestState(board, goalState, mulberry32(3), { maxNodes: 500, timeoutMs: 2000 });
+    const b = findFarthestState(board, goalState, mulberry32(3), { maxNodes: 500, timeoutMs: 2000 });
+    expect(a.state).toEqual(b.state);
+    expect(a.distance).toBe(b.distance);
   });
 });

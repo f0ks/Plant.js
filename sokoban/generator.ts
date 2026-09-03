@@ -1,8 +1,9 @@
 import type { Board } from "./board.ts";
-import { computeReachable } from "./reachability.ts";
+import { computeReachable, findPath } from "./reachability.ts";
 import type { Rng } from "./rng.ts";
 import { randomInt, shuffle } from "./rng.ts";
-import { sortedBoxes } from "./state.ts";
+import type { Direction, Pull, State } from "./state.ts";
+import { legalPulls, sortedBoxes, stateKey } from "./state.ts";
 
 const BLOCK_SIZE = 3;
 
@@ -249,4 +250,157 @@ export function placeGoals(
     if (isSpacedOut(board, candidate)) return sortedBoxes(candidate);
   }
   return null;
+}
+
+export interface FarthestStateOptions {
+  /** Cap on total distinct states visited. Default 20000. */
+  maxNodes?: number;
+  /** Hard wall-clock budget in ms. Default 5000. */
+  timeoutMs?: number;
+}
+
+export interface FarthestStateResult {
+  state: State;
+  distance: number;
+  nodes: number;
+  /** Count of *other* states tied with `state` at the maximum distance
+   * found -- Taylor & Parberry §3.3's `siblingLevels` input to `score()`,
+   * finally computable now that a generator exists (see the plan's Design
+   * notes, item 3). */
+  siblingLevels: number;
+  /** Forward u/d/l/r solution (push = uppercase, `solver.ts`'s convention)
+   * from `state` to the goal state — the reverse of the pull chain that
+   * found it. */
+  solution: string;
+}
+
+interface PullNode {
+  state: State;
+  distance: number;
+  parent: PullNode | null;
+  pull: Pull | null;
+}
+
+function neighbor(board: Board, cell: number, dir: Direction): number | null {
+  const x = cell % board.width;
+  const y = (cell - x) / board.width;
+  const nx = x + dir.dx;
+  const ny = y + dir.dy;
+  if (nx < 0 || nx >= board.width || ny < 0 || ny >= board.height) return null;
+  return ny * board.width + nx;
+}
+
+function directionLetter(dir: Direction): string {
+  if (dir.dx === 0 && dir.dy === -1) return "u";
+  if (dir.dx === 0 && dir.dy === 1) return "d";
+  if (dir.dx === -1 && dir.dy === 0) return "l";
+  if (dir.dx === 1 && dir.dy === 0) return "r";
+  throw new Error(`directionLetter: not a unit direction (${dir.dx}, ${dir.dy})`);
+}
+
+/**
+ * Walks from `farthestNode` up to the root (the goal state, `pull: null`),
+ * collecting each step's incoming pull -- already in "undo the most recent
+ * pull first" order, which is exactly the order needed to replay them as
+ * forward pushes starting from the farthest state (see the plan's Design
+ * notes, item 1, for the box-cell arithmetic this depends on).
+ */
+function reconstructPullSolution(board: Board, farthestNode: PullNode): string {
+  const chain: Pull[] = [];
+  let cur: PullNode | null = farthestNode;
+  while (cur && cur.pull) {
+    chain.push(cur.pull);
+    cur = cur.parent;
+  }
+
+  let solution = "";
+  let player = farthestNode.state.player;
+  let boxes = farthestNode.state.boxes;
+
+  for (const pull of chain) {
+    const pushBox = neighbor(board, pull.box, { dx: -pull.direction.dx, dy: -pull.direction.dy });
+    if (pushBox === null) {
+      throw new Error("reconstructPullSolution: internal error, invalid pull direction");
+    }
+    const behind = neighbor(board, pushBox, { dx: -pull.direction.dx, dy: -pull.direction.dy });
+    if (behind === null) {
+      throw new Error("reconstructPullSolution: internal error, invalid pull direction");
+    }
+    const walk = findPath(board, boxes, player, behind);
+    if (walk === null) {
+      throw new Error("reconstructPullSolution: internal error, player cannot reach a required push position");
+    }
+    solution += walk;
+    solution += directionLetter(pull.direction).toUpperCase();
+
+    const destination = neighbor(board, pushBox, pull.direction)!;
+    boxes = sortedBoxes(boxes.map((b) => (b === pushBox ? destination : b)));
+    player = pushBox;
+  }
+
+  return solution;
+}
+
+/**
+ * BFS over pull-reachable predecessor states of `goalState`, returning the
+ * one with maximum distance (in pulls) -- which equals its push-optimal
+ * solve distance, since the pull-graph is the exact edge-reversal of the
+ * forward push-graph the solver already searches (see the plan's Design
+ * notes, item 2). Deduplicates with the same `stateKey` normalization the
+ * forward solver relies on. Ties at the maximum distance are broken by
+ * reservoir sampling over `rng`, so the choice is uniform and reproducible;
+ * the tie count feeds `siblingLevels`.
+ */
+export function findFarthestState(
+  board: Board,
+  goalState: State,
+  rng: Rng,
+  options: FarthestStateOptions = {},
+): FarthestStateResult {
+  const maxNodes = options.maxNodes ?? 20000;
+  const timeoutMs = options.timeoutMs ?? 5000;
+  const startTime = Date.now();
+
+  const root: PullNode = { state: goalState, distance: 0, parent: null, pull: null };
+  const visited = new Set<string>([stateKey(board, goalState)]);
+  let frontier: PullNode[] = [root];
+  let best = root;
+  let bestTieCount = 1;
+  let nodes = 1;
+
+  while (frontier.length > 0 && nodes < maxNodes && Date.now() - startTime < timeoutMs) {
+    const next: PullNode[] = [];
+
+    for (const node of frontier) {
+      if (node.distance > best.distance) {
+        best = node;
+        bestTieCount = 1;
+      } else if (node.distance === best.distance) {
+        bestTieCount++;
+        if (rng() < 1 / bestTieCount) best = node;
+      }
+
+      if (nodes >= maxNodes || Date.now() - startTime >= timeoutMs) continue;
+
+      const pulls = shuffle(rng, legalPulls(board, node.state));
+      for (const pull of pulls) {
+        const key = stateKey(board, pull.state);
+        if (visited.has(key)) continue;
+        visited.add(key);
+        nodes++;
+        next.push({ state: pull.state, distance: node.distance + 1, parent: node, pull });
+        if (nodes >= maxNodes) break;
+      }
+    }
+
+    frontier = next;
+  }
+
+  return {
+    state: best.state,
+    distance: best.distance,
+    nodes,
+    siblingLevels: bestTieCount - 1,
+    solution: reconstructPullSolution(board, best),
+  };
 }
