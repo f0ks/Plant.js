@@ -365,7 +365,11 @@ export function findFarthestState(
   const visited = new Set<string>([stateKey(board, goalState)]);
   let frontier: PullNode[] = [root];
   let best = root;
-  let bestTieCount = 1;
+  // Seeded at 0 (not 1) so that when the root is processed as the first
+  // frontier element inside the loop below, its own distance-0 tie against
+  // `best` (itself, the root) increments this to 1 rather than 2 -- avoiding
+  // a double-count of the root when no state beyond it is ever reached.
+  let bestTieCount = 0;
   let nodes = 1;
 
   while (frontier.length > 0 && nodes < maxNodes && Date.now() - startTime < timeoutMs) {

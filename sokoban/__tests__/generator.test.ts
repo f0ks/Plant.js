@@ -112,6 +112,10 @@ describe("findFarthestState", () => {
     const result = findFarthestState(board, goalState, mulberry32(1));
     expect(result.distance).toBe(0);
     expect(result.solution).toBe("");
+    // Exactly one state (the root/goal itself) was ever visited, so there
+    // are no *other* states tied with it at the max distance.
+    expect(result.nodes).toBe(1);
+    expect(result.siblingLevels).toBe(0);
   });
 
   it("finds a state whose optimal solve distance (via the existing solver) matches the search's own distance", () => {
