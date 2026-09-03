@@ -408,3 +408,69 @@ export function findFarthestState(
     solution: reconstructPullSolution(board, best),
   };
 }
+
+export interface GenerateOptions {
+  blockCols: number;
+  blockRows: number;
+  boxCount: number;
+  maxRoomAttempts?: number;
+  maxGoalAttempts?: number;
+  farthestState?: FarthestStateOptions;
+}
+
+export interface GeneratedLevel {
+  board: Board;
+  /** The generated level's start state -- the farthest state found. */
+  state: State;
+  /** The "solved" state (boxes on goals) the reverse search started from. */
+  goalState: State;
+  distance: number;
+  nodes: number;
+  siblingLevels: number;
+  solution: string;
+}
+
+function buildIsGoal(board: Board, goals: readonly number[]): Uint8Array {
+  const isGoal = new Uint8Array(board.width * board.height);
+  for (const g of goals) isGoal[g] = 1;
+  return isGoal;
+}
+
+function representativePlayer(board: Board, boxes: readonly number[]): number {
+  for (let cell = 0; cell < board.floor.length; cell++) {
+    if (board.floor[cell] && !board.walls[cell] && !boxes.includes(cell)) return cell;
+  }
+  throw new Error("representativePlayer: no free floor cell for the player");
+}
+
+/**
+ * The full Phase 5 pipeline (docs/level-generation.md §7): build a room,
+ * place goals, then reverse-search for the farthest state from "boxes on
+ * goals". Returns `null` if any stage fails within its attempt/node budget
+ * -- callers (cli/gen.ts) should treat that as "this attempt didn't produce
+ * a level" and try again with a fresh `rng` draw, not as an error.
+ */
+export function generateLevel(rng: Rng, options: GenerateOptions): GeneratedLevel | null {
+  const room = buildRoom(rng, options.blockCols, options.blockRows, options.maxRoomAttempts ?? 300);
+  if (room === null) return null;
+
+  const goals = placeGoals(room, options.boxCount, rng, { maxAttempts: options.maxGoalAttempts ?? 500 });
+  if (goals === null) return null;
+
+  const board: Board = { ...room, goals, isGoal: buildIsGoal(room, goals) };
+  const player = representativePlayer(board, goals);
+  const goalState: State = { boxes: goals, player };
+
+  const farthest = findFarthestState(board, goalState, rng, options.farthestState);
+  if (farthest.distance === 0) return null;
+
+  return {
+    board,
+    state: farthest.state,
+    goalState,
+    distance: farthest.distance,
+    nodes: farthest.nodes,
+    siblingLevels: farthest.siblingLevels,
+    solution: farthest.solution,
+  };
+}

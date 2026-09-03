@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../rng";
-import { buildRoom, placeGoals, findFarthestState } from "../generator";
+import { buildRoom, placeGoals, findFarthestState, generateLevel } from "../generator";
 import { computeReachable } from "../reachability";
 import { buildBoard } from "../board";
 import { solve } from "../solver";
 import { sortedBoxes } from "../state";
+import { validateStructure } from "../validate";
 
 describe("buildRoom", () => {
   it("produces a board fully enclosed by walls at the requested size", () => {
@@ -170,5 +171,37 @@ describe("findFarthestState", () => {
     const b = findFarthestState(board, goalState, mulberry32(3), { maxNodes: 500, timeoutMs: 2000 });
     expect(a.state).toEqual(b.state);
     expect(a.distance).toBe(b.distance);
+  });
+});
+
+describe("generateLevel", () => {
+  it("produces a structurally valid, solvable level whose optimal solve distance matches its recorded distance", () => {
+    const rng = mulberry32(1);
+    const level = generateLevel(rng, { blockCols: 2, blockRows: 2, boxCount: 2 });
+    expect(level).not.toBeNull();
+    const lvl = level!;
+
+    const issues = validateStructure(lvl.board, lvl.state);
+    const hard = issues.filter((i) => i.code === "not-closed" || i.code === "box-goal-mismatch");
+    expect(hard).toEqual([]);
+
+    const solved = solve(lvl.board, lvl.state, { timeoutMs: 5000 });
+    expect(solved.solvable).toBe(true);
+    expect(solved.pushes).toBe(lvl.distance);
+  });
+
+  it("returns null when goal placement is infeasible, rather than a fake level", () => {
+    // boxCount far exceeds the floor-cell count of a 1x1-block room, so
+    // placeGoals fails outright and generateLevel must propagate null.
+    const rng = mulberry32(1);
+    const level = generateLevel(rng, { blockCols: 1, blockRows: 1, boxCount: 50 });
+    expect(level).toBeNull();
+  });
+
+  it("is deterministic for a fixed seed", () => {
+    const a = generateLevel(mulberry32(2), { blockCols: 2, blockRows: 2, boxCount: 2 });
+    const b = generateLevel(mulberry32(2), { blockCols: 2, blockRows: 2, boxCount: 2 });
+    expect(a?.state).toEqual(b?.state);
+    expect(a?.distance).toBe(b?.distance);
   });
 });
