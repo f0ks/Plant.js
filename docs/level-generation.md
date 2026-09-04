@@ -65,9 +65,15 @@ first and remaps second rather than doing any direct char-to-char swap.
 **Grass border.** `xsbToDemoGrid` pads every generated level with a 1-cell
 `G` (grass) border on all four sides, matching the decorative style the
 five hand-authored levels already used — each of those, per the pre-Phase-6
-`examples/sokoban/levels.ts` (git history: commit `a48463f`), was itself
-walled on all four edges with `D` and then wrapped in one more `G` ring, the
-same shape §6.5's example grid below shows for a generated level. This is a
+`examples/sokoban/levels.ts` (git history: commit `a48463f`), was walled on
+all four edges with `D` and then had `G` cells outside that wall. Only two
+of the five (levels 2 and 5) were clean rectangles where that outer `G`
+formed the same uniform 1-cell ring §6.5's example grid below shows for a
+generated level; the other three were irregular/L-shaped rooms where `G`
+filled the bounding rectangle's background at varying width instead (e.g.
+old level 1's rows 7-9 opened with four `G` cells before the first `D`).
+The stylistic intent — a walled room framed by grass — carries over either
+way; only the exact shape of that framing is new here. This is a
 visual-consistency choice, not a functional necessity, and it requires no
 change to `examples/sokoban/sokoban.ts`: `G` is already a wall-equivalent
 character there (`move()`'s blocking check is literally
@@ -932,6 +938,9 @@ sokoban/
   rng.ts               seeded PRNG (mulberry32), no crypto dependency
   generator.ts         Taylor–Parberry room templates, goal placement,
                        reverse "farthest state" search
+  demoExport.ts        xsbToDemoGrid, selectDemoLevels — Phase 6 adapter
+                       from generator output to examples/sokoban's grid
+                       format (see Phase 6 §6.2-6.4 above)
   cli/
     solve.ts           node sokoban/cli/solve.ts solve <file.xsb> --json
     gen.ts             node sokoban/cli/gen.ts batch --count N --seed S ... --out levels.jsonl
@@ -939,10 +948,18 @@ sokoban/
                        (its own entry point, not a gen.ts subcommand --
                        corrected from this line's original text; see
                        Phase 5 §5.6)
+    export-demo.ts     node sokoban/cli/export-demo.ts levels.jsonl --count N --out examples/sokoban/levels.ts
+                       (Phase 6; converts accepted levels to the demo's
+                       grid format)
+    _shared.ts         parsePositiveInt/emitError/parseJSONLRecords,
+                       shared by render.ts and export-demo.ts (Phase 6)
   tsconfig.json         separate from the engine's tsconfig (Node lib, no DOM)
   __tests__/
     xsb.test.ts, state.test.ts, solver.test.ts, deadlock.test.ts,
-    metrics.test.ts, generator.test.ts
+    metrics.test.ts, generator.test.ts, demoExport.test.ts
+    (this list, like the rest of this block, is the original module-layout
+    proposal and has not been kept current with every later phase; see
+    each phase's own section for what actually shipped)
 
 fixtures/
   microban/            Skinner's Microban set (Phase 3), credited README

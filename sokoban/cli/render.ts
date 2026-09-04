@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
+import { emitError, parseJSONLRecords, parsePositiveInt } from "./_shared.ts";
 
 interface JSONLLevel {
   seed: number;
@@ -20,16 +21,6 @@ interface Args {
   acceptedOnly: boolean;
 }
 
-/** Positive-integer argv value, or a thrown parse error — `--top nonsense`
- * used to slip through as NaN and silently print nothing at exit 0. */
-function parsePositiveInt(flag: string, raw: string | undefined): number {
-  const value = Number(raw);
-  if (raw === undefined || raw === "" || !Number.isInteger(value) || value < 1) {
-    throw new Error(`render.ts: ${flag} expects a positive integer, got ${JSON.stringify(raw)}`);
-  }
-  return value;
-}
-
 function parseArgs(argv: string[]): Args {
   let file: string | undefined;
   let top = 10;
@@ -37,19 +28,15 @@ function parseArgs(argv: string[]): Args {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--top") top = parsePositiveInt("--top", argv[++i]);
+    // `--top nonsense` used to slip through as NaN and silently print
+    // nothing at exit 0 — parsePositiveInt rejects it instead.
+    if (arg === "--top") top = parsePositiveInt("render.ts", "--top", argv[++i]);
     else if (arg === "--accepted-only") acceptedOnly = true;
     else if (!arg.startsWith("--") && file === undefined) file = arg;
     else throw new Error(`render.ts: unknown argument ${JSON.stringify(arg)}`);
   }
 
   return { file, top, acceptedOnly };
-}
-
-/** Same `{"error": ...}` / exit 3 shape as the other sokoban CLI tools. */
-function emitError(message: string): number {
-  console.log(JSON.stringify({ error: message }));
-  return 3;
 }
 
 function main(): number {
@@ -73,12 +60,9 @@ function main(): number {
 
   let levels: JSONLLevel[];
   try {
-    levels = text
-      .split("\n")
-      .filter((line) => line.length > 0)
-      .map((line) => JSON.parse(line));
-  } catch (err) {
     // A malformed line used to throw out of main() as an uncaught exception.
+    levels = parseJSONLRecords(text) as unknown as JSONLLevel[];
+  } catch (err) {
     return emitError(`parse error: ${(err as Error).message}`);
   }
 

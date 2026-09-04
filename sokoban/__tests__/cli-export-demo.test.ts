@@ -90,4 +90,21 @@ describe("cli/export-demo.ts", () => {
     expect(status).toBe(3);
     expect(JSON.parse(stdout).error).toContain("cannot build demo grid");
   });
+
+  it("exits 3 on a well-formed JSON line that isn't a level record, rather than crashing", () => {
+    const file = join(dir, "non-record.jsonl");
+    writeFileSync(file, "null\n");
+    const { status, stdout } = run([file, "--count", "1"]);
+    expect(status).toBe(3);
+    expect(JSON.parse(stdout).error).toContain("parse error");
+  });
+
+  it("exits 3 when --out is the last argument, instead of silently writing to stdout", () => {
+    const input = writeJSONL("levels-out-arg.jsonl", [
+      { xsb: SMALL_ROOM, score: 500, accepted: true, pushes: 5 },
+    ]);
+    const { status, stdout } = run([input, "--count", "1", "--out"]);
+    expect(status).toBe(3);
+    expect(JSON.parse(stdout).error).toContain("--out");
+  });
 });

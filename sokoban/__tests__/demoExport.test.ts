@@ -65,4 +65,10 @@ describe("xsbToDemoGrid", () => {
       expect(row[row.length - 1]).toBe("G");
     }
   });
+
+  it("returns a top border row that is its own array, not aliased to the bottom border row", () => {
+    const grid = xsbToDemoGrid("#####\n#@$.#\n#####");
+    grid[0][0] = "X";
+    expect(grid[grid.length - 1][0]).toBe("G");
+  });
 });

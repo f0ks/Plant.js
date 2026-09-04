@@ -30,7 +30,7 @@ export function xsbToDemoGrid(xsb: string): string[][] {
   const normalized = boardToRows(board, state);
 
   const border = new Array(board.width + 2).fill("G") as string[];
-  const grid: string[][] = [border];
+  const grid: string[][] = [[...border]];
 
   for (const row of normalized) {
     const mapped = [...row].map((ch) => {

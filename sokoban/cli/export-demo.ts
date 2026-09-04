@@ -2,19 +2,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { selectDemoLevels, xsbToDemoGrid } from "../demoExport.ts";
 import type { DemoSourceLevel } from "../demoExport.ts";
+import { emitError, parseJSONLRecords, parsePositiveInt } from "./_shared.ts";
 
 interface Args {
   file?: string;
   count: number;
   out?: string;
-}
-
-function parsePositiveInt(flag: string, raw: string | undefined): number {
-  const value = Number(raw);
-  if (raw === undefined || raw === "" || !Number.isInteger(value) || value < 1) {
-    throw new Error(`export-demo.ts: ${flag} expects a positive integer, got ${JSON.stringify(raw)}`);
-  }
-  return value;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -24,19 +17,20 @@ function parseArgs(argv: string[]): Args {
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--count") count = parsePositiveInt("--count", argv[++i]);
-    else if (arg === "--out") out = argv[++i];
-    else if (!arg.startsWith("--") && file === undefined) file = arg;
+    if (arg === "--count") count = parsePositiveInt("export-demo.ts", "--count", argv[++i]);
+    else if (arg === "--out") {
+      // `--out` as the last token used to silently fall back to stdout —
+      // require an operand the same way --count does.
+      const next = argv[++i];
+      if (next === undefined) {
+        throw new Error("export-demo.ts: --out expects a file path");
+      }
+      out = next;
+    } else if (!arg.startsWith("--") && file === undefined) file = arg;
     else throw new Error(`export-demo.ts: unknown argument ${JSON.stringify(arg)}`);
   }
 
   return { file, count, out };
-}
-
-/** Same `{"error": ...}` / exit 3 shape as the other sokoban CLI tools. */
-function emitError(message: string): number {
-  console.log(JSON.stringify({ error: message }));
-  return 3;
 }
 
 function formatGrid(grid: string[][]): string {
@@ -84,10 +78,7 @@ function main(): number {
 
   let levels: DemoSourceLevel[];
   try {
-    levels = text
-      .split("\n")
-      .filter((line) => line.length > 0)
-      .map((line) => JSON.parse(line));
+    levels = parseJSONLRecords(text) as unknown as DemoSourceLevel[];
   } catch (err) {
     return emitError(`parse error: ${(err as Error).message}`);
   }

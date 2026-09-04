@@ -88,4 +88,12 @@ describe("cli/render.ts", () => {
     expect(status).toBe(3);
     expect(JSON.parse(stdout).error).toContain("parse error");
   });
+
+  it("exits 3 on a well-formed JSON line that isn't a level record, rather than crashing", () => {
+    const file = join(dir, "non-record.jsonl");
+    writeFileSync(file, "null\n");
+    const { status, stdout } = run([file]);
+    expect(status).toBe(3);
+    expect(JSON.parse(stdout).error).toContain("parse error");
+  });
 });
