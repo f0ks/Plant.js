@@ -25,13 +25,13 @@ exactly undoes applyPush for every legal push in a test room", replays every
 legal push in a fixture room and confirms `applyPull` on the resulting state
 reconstructs the exact original state.
 
-### 5.2 Farthest-state search reuses `stateKey` for dedup — and why that's sound
+### 5.2 Farthest-state search: one root per player region, and why the dedup is sound
 
 `findFarthestState` (`sokoban/generator.ts`) is a layered BFS over
-`legalPulls`, starting at the "boxes on goals" state and searching outward.
-It dedups visited states with the same `stateKey` normalization
+`legalPulls`, starting at the "boxes on goals" configuration and searching
+outward. It dedups visited states with the same `stateKey` normalization
 (sorted box multiset + player-reachable-region representative) the forward
-solver already uses. This is sound for the same reason it's sound in
+solver already uses. That dedup is sound for the same reason it's sound in
 `solver.ts`: the pull-graph is the *exact edge-reversal* of the push-graph,
 so BFS shortest-path distance in the pull-graph from the goal state to any
 state `S` equals `S`'s push-optimal solve distance back to the goal — a
@@ -39,6 +39,49 @@ property that only holds because Phase 3's Microban gate already proved the
 underlying normalization correct for the forward direction. No new
 dedup logic was needed or written; `generator.ts` imports `stateKey`
 directly from `state.ts`.
+
+**The edge-reversal argument only delivers that guarantee if the BFS
+actually explores the whole pull-graph reachable from "solved" — and that
+takes more than one root.** Boxes block the player, so a box on every goal
+frequently partitions the room's floor into several player-reachable
+regions. "Boxes on goals, player in region A" and "boxes on goals, player in
+region B" are genuinely different states with different (often disjoint)
+sets of legal pulls, and `stateKey` keeps them apart by design — its player
+component is the region's own representative cell. Seeding the search from a
+single arbitrary region therefore does not merely deduplicate the other
+regions' descendants away; it never discovers them at all, and the search
+returns a distance that is too shallow (sometimes 0) with nothing to signal
+that anything was missed.
+
+So the search seeds **one root per player-reachable region** of the goal
+configuration: `playerRegions(board, boxes)` enumerates them with
+`computeReachable` — walking free cells in index order and starting a new
+region whenever one isn't covered by an earlier region's mask, mirroring
+`isFullyConnected`'s one-shot connectivity walk — and every root goes into
+`visited` and the initial frontier at distance 0. Every region is a legal
+"solved" player position, so every region is a legitimate root, and the
+existing reservoir-sampling tie-break then runs uniformly across all of
+them. One consequence worth knowing at the call site: `goalState.player` is
+ignored for seeding, and the winning chain's actual root comes back as
+`FarthestStateResult.goalState` (which is what `GeneratedLevel.goalState`
+now reports), so replaying the recorded solution from the start state ends
+in *that* root's region rather than in whichever region the caller happened
+to name.
+
+This was a real defect found by the final whole-branch review, not a
+hypothetical: single-region seeding understated the push-optimal distance on
+1.7-5% of generated levels across seed sweeps, and biased `cli/gen.ts`'s
+scoring accordingly. `sokoban/__tests__/generator.test.ts` guards it two
+ways. A hand-built board puts the only goal on the single door cell between
+a shallow dead-end pocket and a deep room; with a box on that goal the
+pocket (which holds the lowest-index floor cell, the one the old seeding
+picked) offers *zero* legal pulls, so single-region seeding reports distance
+0 where the true answer is 3. That precise case is backed by a 40-seed sweep
+over real generator-scale rooms, checking every result against an
+independent multi-source reference BFS written directly in the test rather
+than against `findFarthestState` itself — and asserting the sweep really did
+cover room-splitting configurations, since a single hand-authored fixture is
+exactly how this survived ten clean per-task reviews.
 
 The farthest node's solution is reconstructed by `reconstructPullSolution`,
 which walks the winning `PullNode` chain back to the root and replays each
@@ -91,43 +134,55 @@ practice, running the same computation for seeds 1-50 gives 50/50
 successes).
 
 **Actual end-to-end smoke test**, run against the built repo (not
-predicted numbers):
+predicted numbers). Re-run after the §5.2 multi-region-seeding fix and the
+§5.8 box-on-goal-at-start rejection, both of which change the output — the
+numbers below supersede an earlier transcript recorded before those fixes:
 
 ```
 $ node sokoban/cli/gen.ts batch --count 20 --seed 1 --box-count 3 --block-cols 2 --block-rows 2 --out levels.jsonl
-{"requested":20,"generated":20,"attempts":20}
+{"requested":20,"generated":20,"attempts":37}
 $ echo $?
 0
 ```
 
-All 20 requested levels were produced on the first attempt each (`attempts`
-equals `generated` equals `requested` — no room/goal/farthest-state failures
-in this run at the 2×2 default). Of the 20 generated levels, 10 were
-`accepted` (`score > 0`) and 10 were rejected; scores ranged from -1350 to
-3960 across all 20, and 460 to 3960 among the accepted ones. Two real
-values: the top-ranked level (seed 1, attempt 17) scored 3960 with 19
-pushes / 15 box lines / 3 boxes; a rejected level (seed 1, attempt 1) scored
--400 with 10 pushes / 7 box lines / 3 boxes / 1 sibling.
+All 20 requested levels were produced, taking 37 attempts — the 17 rejected
+attempts are the box-on-goal-at-start rejection doing its job (see §5.8;
+before it, this same command produced 20 levels in 20 attempts but 11 of
+those 20 started partially pre-solved). Of the 20 generated levels, 14 were
+`accepted` (`score > 0`) and 6 were rejected; scores ranged from -800 to
+2700 across all 20, and 50 to 2700 among the accepted ones. Two real values:
+the top-ranked level (seed 1, attempt 34) scored 2700 with 20 pushes / 11
+box lines / 3 boxes / 0 siblings; the lowest-scoring one (seed 1, attempt 4)
+scored -800 with 8 pushes / 6 box lines / 3 boxes / 0 siblings.
 
 `node sokoban/cli/render.ts levels.jsonl --top 5` printed five ranked,
 readable XSB levels, highest score first, e.g. the top-ranked one:
 
 ```
-; rank 1  score 3960  pushes 19  lines 15  boxes 3  seed 1 attempt 17
-; generated seed=1 attempt=17
+; rank 1  score 2700  pushes 20  lines 11  boxes 3  seed 1 attempt 34
+; generated seed=1 attempt=34
 ########
-# .#@  #
-#  #*$ #
-#    ###
-#      #
-# #.$  #
-#   #  #
+## $ .##
+#@$  $ #
+#  ##  #
+#  #   #
+#    # #
+#.    .#
 ########
 ```
 
-Read by eye: an 8×8 room fully enclosed by a `#` border, 3 goals (`.`, plus
-one already-matched `*`), 3 boxes (`$`/`*`), and a player (`@`) — a real,
-closed Sokoban room, not degenerate output.
+Read by eye: an 8×8 room fully enclosed by a `#` border, 3 goals (`.`), 3
+boxes (`$`), and a player (`@`) — a real, closed Sokoban room, not
+degenerate output, and with no `*` anywhere, i.e. no box starting on a goal
+(none of the 20 has one).
+
+The recorded push counts were also re-checked independently rather than
+taken on trust: feeding each of these five levels' XSB back through
+`solve()` reproduces the recorded number exactly (20, 16, 14, 16, 14),
+confirming each is genuinely push-optimal. That check matters here — the
+pre-fix version of this section showcased a level claiming 19 pushes whose
+true optimum was 13, which is precisely the §5.2 bug showing up in the
+scoring.
 
 ### 5.5 Goal-spacing rule: `MIN_GOAL_SPACING = 2` (Chebyshev)
 
@@ -165,6 +220,37 @@ cell in the three affected fixtures. No production code was affected.
 
 ### 5.8 Known limitations / future work
 
+- **Rejecting box-on-goal-at-start costs yield.** A generated level whose
+  *start* state already has a box parked on a goal is partially pre-solved
+  and strictly weaker as a puzzle, so `generateLevel` now checks the
+  farthest state the reverse search returns with `validateStructure`
+  (`sokoban/validate.ts`, the `box-on-goal-at-start` issue — reused, not
+  reimplemented) and returns `null` when it hits, the same
+  "this attempt didn't produce a level" convention `buildRoom` and
+  `placeGoals` already use. `cli/gen.ts`'s existing retry loop absorbs it
+  with no new machinery. The tradeoff is real and measured on the §5.4 smoke
+  test (`--count 20 --seed 1 --box-count 3`, everything else identical):
+  without the rejection, 20 levels in 20 attempts, but 11 of the 20 started
+  pre-solved; with it, 20 levels in 37 attempts and none pre-solved. So
+  roughly 1.85× the attempts per accepted level at these parameters — cheap
+  here (each attempt is a fresh room plus a bounded reverse search), but
+  worth remembering when budgeting `--max-attempts` for larger rooms or
+  higher box counts, where per-attempt costs are much higher. A cheaper
+  future option would be biasing goal placement away from cells the search
+  tends to leave boxes on, rather than rejecting after the fact.
+- **`findFarthestState`'s budget is wall-clock, not node-count, so seeded
+  runs are not reproducible in the strict sense.** `timeoutMs` (default
+  5000ms) stops the search by elapsed time, which means a heavily-loaded
+  machine could in principle expand fewer layers than an idle one and return
+  a different state for the very same seed — in tension with the
+  seed-determinism guarantee three tests in
+  `sokoban/__tests__/generator.test.ts` assert. This has not been observed
+  to actually happen at the tested parameters (the searches there finish far
+  inside the budget; `maxNodes`, which *is* deterministic, is the binding
+  cap in practice), so it is recorded rather than fixed. A proper fix —
+  making the budget purely node-count-based, or making the timeout affect
+  only an explicitly-flagged "truncated" result — needs more design thought
+  than it was worth spending inline here.
 - **Larger rooms have low per-attempt success rates and aren't tuned
   further in this phase.** The 5.4 table shows 3×2 (4.2%) and 3×3+ (1.1%,
   falling further for bigger grids) succeed far less often per attempt than
