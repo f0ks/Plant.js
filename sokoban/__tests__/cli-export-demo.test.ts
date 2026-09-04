@@ -81,4 +81,13 @@ describe("cli/export-demo.ts", () => {
     expect(status).toBe(3);
     expect(JSON.parse(stdout).error).toContain("cannot read file");
   });
+
+  it("exits 3 on malformed XSB data (e.g., grid with no player)", () => {
+    const input = writeJSONL("levels-bad-xsb.jsonl", [
+      { xsb: "###\n#.#\n###", score: 500, accepted: true, pushes: 5 },
+    ]);
+    const { status, stdout } = run([input, "--count", "1"]);
+    expect(status).toBe(3);
+    expect(JSON.parse(stdout).error).toContain("cannot build demo grid");
+  });
 });

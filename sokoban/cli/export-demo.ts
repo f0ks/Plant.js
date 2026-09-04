@@ -99,7 +99,12 @@ function main(): number {
     );
   }
 
-  const output = formatLevelsFile(selected);
+  let output: string;
+  try {
+    output = formatLevelsFile(selected);
+  } catch (err) {
+    return emitError(`cannot build demo grid: ${(err as Error).message}`);
+  }
 
   if (args.out) {
     try {
