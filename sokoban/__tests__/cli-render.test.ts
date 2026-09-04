@@ -59,7 +59,33 @@ describe("cli/render.ts", () => {
   });
 
   it("exits 3 for a missing file", () => {
-    const { status } = run([join(dir, "missing.jsonl")]);
+    const { status, stdout } = run([join(dir, "missing.jsonl")]);
     expect(status).toBe(3);
+    expect(JSON.parse(stdout).error).toContain("cannot read file");
+  });
+
+  it("exits 3 on a non-numeric --top instead of silently printing nothing", () => {
+    const file = writeJSONL("top-arg.jsonl", [
+      { seed: 1, attempt: 1, xsb: "A", distance: 1, pushes: 1, lines: 1, boxes: 1, siblingLevels: 0, score: 1, accepted: true },
+    ]);
+    const { status, stdout } = run([file, "--top", "nonsense"]);
+    expect(status).toBe(3);
+    expect(JSON.parse(stdout).error).toContain("--top");
+  });
+
+  it("rejects --top 0 and --top -1", () => {
+    const file = writeJSONL("top-arg.jsonl", [
+      { seed: 1, attempt: 1, xsb: "A", distance: 1, pushes: 1, lines: 1, boxes: 1, siblingLevels: 0, score: 1, accepted: true },
+    ]);
+    expect(run([file, "--top", "0"]).status).toBe(3);
+    expect(run([file, "--top", "-1"]).status).toBe(3);
+  });
+
+  it("exits 3 with a clean error on a malformed JSONL line, rather than crashing", () => {
+    const file = join(dir, "malformed.jsonl");
+    writeFileSync(file, '{"seed":1,"score":1}\nnot json at all\n');
+    const { status, stdout } = run([file]);
+    expect(status).toBe(3);
+    expect(JSON.parse(stdout).error).toContain("parse error");
   });
 });

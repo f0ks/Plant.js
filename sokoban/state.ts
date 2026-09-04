@@ -36,7 +36,7 @@ export interface Push {
 }
 
 /** Neighbor of `cell` one step in `direction`, or null if off the board. */
-function step(board: Board, cell: number, direction: Direction): number | null {
+export function step(board: Board, cell: number, direction: Direction): number | null {
   const x = cell % board.width;
   const y = (cell - x) / board.width;
   const nx = x + direction.dx;

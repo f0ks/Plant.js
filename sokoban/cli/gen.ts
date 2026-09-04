@@ -115,7 +115,14 @@ function main(): number {
 
   const jsonl = levels.map((l) => JSON.stringify(l)).join("\n") + (levels.length > 0 ? "\n" : "");
   if (args.out) {
-    writeFileSync(args.out, jsonl);
+    try {
+      writeFileSync(args.out, jsonl);
+    } catch (err) {
+      // Same clean `{"error": ...}` / exit 3 shape parseArgs failures use,
+      // rather than a raw stack trace, for e.g. a missing parent directory.
+      console.log(JSON.stringify({ error: `cannot write ${args.out}: ${(err as Error).message}` }));
+      return 3;
+    }
   } else {
     process.stdout.write(jsonl);
   }

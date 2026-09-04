@@ -3,7 +3,8 @@ import { computeReachable, findPath } from "./reachability.ts";
 import type { Rng } from "./rng.ts";
 import { randomInt, shuffle } from "./rng.ts";
 import type { Direction, Pull, State } from "./state.ts";
-import { legalPulls, sortedBoxes, stateKey } from "./state.ts";
+import { legalPulls, sortedBoxes, stateKey, step } from "./state.ts";
+import { validateStructure } from "./validate.ts";
 
 const BLOCK_SIZE = 3;
 
@@ -253,7 +254,9 @@ export function placeGoals(
 }
 
 export interface FarthestStateOptions {
-  /** Cap on total distinct states visited. Default 20000. */
+  /** Cap on total distinct states *discovered* (enqueued), the seed roots
+   * included -- not on states expanded, which can be fewer when the cap or
+   * the timeout stops the search mid-layer. Default 20000. */
   maxNodes?: number;
   /** Hard wall-clock budget in ms. Default 5000. */
   timeoutMs?: number;
@@ -262,6 +265,9 @@ export interface FarthestStateOptions {
 export interface FarthestStateResult {
   state: State;
   distance: number;
+  /** Distinct states discovered (enqueued) during the search, including the
+   * seed roots -- the quantity `maxNodes` caps. Not every discovered state
+   * is necessarily expanded. */
   nodes: number;
   /** Count of *other* states tied with `state` at the maximum distance
    * found -- Taylor & Parberry §3.3's `siblingLevels` input to `score()`,
@@ -272,6 +278,13 @@ export interface FarthestStateResult {
    * from `state` to the goal state — the reverse of the pull chain that
    * found it. */
   solution: string;
+  /** The seed root the winning pull chain traces back to. Boxes are always
+   * the goal cells; the *player* is that root's region representative, i.e.
+   * replaying `solution` from `state` lands the player somewhere in this
+   * same region (not necessarily on this exact cell — under `stateKey` those
+   * are the same state). With multi-region seeding (see `findFarthestState`)
+   * the region need not be the one the caller's `goalState.player` was in. */
+  goalState: State;
 }
 
 interface PullNode {
@@ -279,15 +292,6 @@ interface PullNode {
   distance: number;
   parent: PullNode | null;
   pull: Pull | null;
-}
-
-function neighbor(board: Board, cell: number, dir: Direction): number | null {
-  const x = cell % board.width;
-  const y = (cell - x) / board.width;
-  const nx = x + dir.dx;
-  const ny = y + dir.dy;
-  if (nx < 0 || nx >= board.width || ny < 0 || ny >= board.height) return null;
-  return ny * board.width + nx;
 }
 
 function directionLetter(dir: Direction): string {
@@ -318,11 +322,11 @@ function reconstructPullSolution(board: Board, farthestNode: PullNode): string {
   let boxes = farthestNode.state.boxes;
 
   for (const pull of chain) {
-    const pushBox = neighbor(board, pull.box, { dx: -pull.direction.dx, dy: -pull.direction.dy });
+    const pushBox = step(board, pull.box, { dx: -pull.direction.dx, dy: -pull.direction.dy });
     if (pushBox === null) {
       throw new Error("reconstructPullSolution: internal error, invalid pull direction");
     }
-    const behind = neighbor(board, pushBox, { dx: -pull.direction.dx, dy: -pull.direction.dy });
+    const behind = step(board, pushBox, { dx: -pull.direction.dx, dy: -pull.direction.dy });
     if (behind === null) {
       throw new Error("reconstructPullSolution: internal error, invalid pull direction");
     }
@@ -333,7 +337,7 @@ function reconstructPullSolution(board: Board, farthestNode: PullNode): string {
     solution += walk;
     solution += directionLetter(pull.direction).toUpperCase();
 
-    const destination = neighbor(board, pushBox, pull.direction)!;
+    const destination = step(board, pushBox, pull.direction)!;
     boxes = sortedBoxes(boxes.map((b) => (b === pushBox ? destination : b)));
     player = pushBox;
   }
@@ -342,14 +346,63 @@ function reconstructPullSolution(board: Board, farthestNode: PullNode): string {
 }
 
 /**
- * BFS over pull-reachable predecessor states of `goalState`, returning the
- * one with maximum distance (in pulls) -- which equals its push-optimal
- * solve distance, since the pull-graph is the exact edge-reversal of the
- * forward push-graph the solver already searches (see the plan's Design
- * notes, item 2). Deduplicates with the same `stateKey` normalization the
- * forward solver relies on. Ties at the maximum distance are broken by
- * reservoir sampling over `rng`, so the choice is uniform and reproducible;
- * the tie count feeds `siblingLevels`.
+ * One representative cell per connected component of *free* floor (on the
+ * floor, not a wall, not occupied by a box) given `boxes`, in ascending
+ * cell order. Boxes act as obstacles for the player, so a box placement can
+ * partition an otherwise-connected room into several player-reachable
+ * regions — each of which is a distinct legal player position for the same
+ * box multiset, and therefore a distinct state the reverse search has to
+ * start from (see `findFarthestState`).
+ *
+ * Mirrors `isFullyConnected`'s one-shot use of `computeReachable`: walk the
+ * free cells in index order and, whenever one isn't already covered by a
+ * previously-computed region's reachable mask, record it as a new region's
+ * representative and mark that whole region covered.
+ */
+export function playerRegions(board: Board, boxes: readonly number[]): number[] {
+  const boxSet = new Set(boxes);
+  const covered = new Uint8Array(board.floor.length);
+  const representatives: number[] = [];
+
+  for (let cell = 0; cell < board.floor.length; cell++) {
+    if (!board.floor[cell] || board.walls[cell] || boxSet.has(cell)) continue;
+    if (covered[cell]) continue;
+
+    representatives.push(cell);
+    const reachable = computeReachable(board, boxes, cell);
+    for (let i = 0; i < reachable.length; i++) {
+      if (reachable[i]) covered[i] = 1;
+    }
+  }
+
+  return representatives;
+}
+
+/**
+ * BFS over pull-reachable predecessor states of the "boxes on goals"
+ * configuration `goalState.boxes`, returning the one with maximum distance
+ * (in pulls) -- which equals its push-optimal solve distance, since the
+ * pull-graph is the exact edge-reversal of the forward push-graph the
+ * solver already searches (see the plan's Design notes, item 2).
+ * Deduplicates with the same `stateKey` normalization the forward solver
+ * relies on. Ties at the maximum distance are broken by reservoir sampling
+ * over `rng`, so the choice is uniform and reproducible; the tie count feeds
+ * `siblingLevels`.
+ *
+ * The search is seeded with **one root per player-reachable region** of the
+ * goal configuration, all at distance 0. That matters for soundness: boxes
+ * block the player, so "boxes on goals" frequently splits the room into
+ * several regions, and `stateKey` normalizes the player to its region's
+ * representative — so a state whose only pull-path back to the goal runs
+ * through a region the search never seeded is not deduplicated away, it is
+ * never discovered at all, and the reported distance comes out too shallow.
+ * Every region is a legal "solved" position for the player, so every region
+ * is a legitimate root.
+ *
+ * Consequently `goalState.player` is **ignored** — it is not used to pick a
+ * root, and the winning chain's actual root is reported back as
+ * `FarthestStateResult.goalState`. The parameter keeps its `State` type so
+ * every existing call site still passes one well-formed value.
  */
 export function findFarthestState(
   board: Board,
@@ -361,16 +414,35 @@ export function findFarthestState(
   const timeoutMs = options.timeoutMs ?? 5000;
   const startTime = Date.now();
 
-  const root: PullNode = { state: goalState, distance: 0, parent: null, pull: null };
-  const visited = new Set<string>([stateKey(board, goalState)]);
-  let frontier: PullNode[] = [root];
-  let best = root;
-  // Seeded at 0 (not 1) so that when the root is processed as the first
-  // frontier element inside the loop below, its own distance-0 tie against
-  // `best` (itself, the root) increments this to 1 rather than 2 -- avoiding
-  // a double-count of the root when no state beyond it is ever reached.
+  for (const box of goalState.boxes) {
+    if (box < 0 || box >= board.floor.length || board.walls[box] || !board.floor[box]) {
+      throw new Error(`findFarthestState: box at cell ${box} is not on open floor`);
+    }
+  }
+
+  const roots: PullNode[] = playerRegions(board, goalState.boxes).map((player) => ({
+    state: { boxes: goalState.boxes, player },
+    distance: 0,
+    parent: null,
+    pull: null,
+  }));
+  if (roots.length === 0) {
+    throw new Error("findFarthestState: no free floor cell for the player in the goal state");
+  }
+
+  // Distinct regions have distinct `stateKey`s by construction (the key's
+  // player component is the region's own minimum cell index), so this seeds
+  // `visited` with exactly `roots.length` entries.
+  const visited = new Set<string>(roots.map((root) => stateKey(board, root.state)));
+  let frontier: PullNode[] = [...roots];
+  let best = roots[0];
+  // Seeded at 0 (not 1) so that when the roots are processed as the first
+  // frontier elements inside the loop below, `roots[0]`'s own distance-0 tie
+  // against `best` (itself) increments this to 1 rather than 2 -- avoiding a
+  // double-count of that root. Every other root then ties through the same
+  // reservoir-sampling branch, so all roots are weighted uniformly.
   let bestTieCount = 0;
-  let nodes = 1;
+  let nodes = roots.length;
 
   while (frontier.length > 0 && nodes < maxNodes && Date.now() - startTime < timeoutMs) {
     const next: PullNode[] = [];
@@ -400,12 +472,16 @@ export function findFarthestState(
     frontier = next;
   }
 
+  let winningRoot: PullNode = best;
+  while (winningRoot.parent !== null) winningRoot = winningRoot.parent;
+
   return {
     state: best.state,
     distance: best.distance,
     nodes,
     siblingLevels: bestTieCount - 1,
     solution: reconstructPullSolution(board, best),
+    goalState: winningRoot.state,
   };
 }
 
@@ -422,7 +498,9 @@ export interface GeneratedLevel {
   board: Board;
   /** The generated level's start state -- the farthest state found. */
   state: State;
-  /** The "solved" state (boxes on goals) the reverse search started from. */
+  /** The "solved" state (boxes on goals) the reverse search started from —
+   * specifically the region root the winning pull chain traces back to, so
+   * replaying `solution` from `state` ends in this state's player region. */
   goalState: State;
   distance: number;
   nodes: number;
@@ -436,19 +514,35 @@ function buildIsGoal(board: Board, goals: readonly number[]): Uint8Array {
   return isGoal;
 }
 
+/**
+ * Lowest-index free floor cell — a single, always-legal player position for
+ * the goal state `generateLevel` hands to `findFarthestState`. It is *not*
+ * where the search starts from (the search seeds every region itself, see
+ * `playerRegions`); it only makes `generateLevel`'s `goalState` a
+ * well-formed `State`.
+ */
 function representativePlayer(board: Board, boxes: readonly number[]): number {
   for (let cell = 0; cell < board.floor.length; cell++) {
     if (board.floor[cell] && !board.walls[cell] && !boxes.includes(cell)) return cell;
   }
+  // Unreachable from `generateLevel`: `buildRoom` only returns rooms whose
+  // floor is fully connected and nook-free (so a 2x2-block room has >= 20
+  // floor cells), and `placeGoals` fails outright unless it can place
+  // `boxCount` goals MIN_GOAL_SPACING apart — together those guarantee at
+  // least one floor cell is left over for the player. The invariant is real,
+  // just non-local, so this throw stays a hard assertion rather than growing
+  // defensive handling.
   throw new Error("representativePlayer: no free floor cell for the player");
 }
 
 /**
  * The full Phase 5 pipeline (docs/level-generation.md §7): build a room,
  * place goals, then reverse-search for the farthest state from "boxes on
- * goals". Returns `null` if any stage fails within its attempt/node budget
- * -- callers (cli/gen.ts) should treat that as "this attempt didn't produce
- * a level" and try again with a fresh `rng` draw, not as an error.
+ * goals". Returns `null` if any stage fails within its attempt/node budget,
+ * or if the farthest state found would make a degenerate level (zero pushes,
+ * or a box already sitting on a goal at the start) -- callers (cli/gen.ts)
+ * should treat that as "this attempt didn't produce a level" and try again
+ * with a fresh `rng` draw, not as an error.
  */
 export function generateLevel(rng: Rng, options: GenerateOptions): GeneratedLevel | null {
   const room = buildRoom(rng, options.blockCols, options.blockRows, options.maxRoomAttempts ?? 300);
@@ -464,10 +558,18 @@ export function generateLevel(rng: Rng, options: GenerateOptions): GeneratedLeve
   const farthest = findFarthestState(board, goalState, rng, options.farthestState);
   if (farthest.distance === 0) return null;
 
+  // A start state with a box already parked on a goal is a partially
+  // pre-solved, strictly weaker puzzle. `validateStructure` already detects
+  // exactly this, so reuse it rather than re-deriving the check; a hit means
+  // this attempt didn't produce a usable level, handled the same way as the
+  // room/goal failures above.
+  const issues = validateStructure(board, farthest.state);
+  if (issues.some((issue) => issue.code === "box-on-goal-at-start")) return null;
+
   return {
     board,
     state: farthest.state,
-    goalState,
+    goalState: farthest.goalState,
     distance: farthest.distance,
     nodes: farthest.nodes,
     siblingLevels: farthest.siblingLevels,

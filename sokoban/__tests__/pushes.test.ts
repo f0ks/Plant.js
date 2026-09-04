@@ -239,8 +239,14 @@ describe("legalPulls / applyPull", () => {
     }
   });
 
-  it("legalPulls finds no pulls when the player isn't adjacent to any box's push-origin side", () => {
-    const { board, state } = buildBoard(["#####", "#@ .#", "#####"]);
+  it("legalPulls finds no pulls when the player can't reach any box's push-origin side", () => {
+    // The board must actually contain a box, or `legalPulls`' per-box loop
+    // never runs and the assertion is vacuously true. Here the player is
+    // sealed into a one-cell pocket by the wall at (2,1): the box's only
+    // floor-side push origin, (4,1), is on the far side of that wall, so the
+    // `reachable[p]` guard rejects every direction.
+    const { board, state } = buildBoard(["#######", "#@#$  #", "#######"]);
+    expect(state.boxes.length).toBe(1);
     expect(legalPulls(board, state)).toEqual([]);
   });
 

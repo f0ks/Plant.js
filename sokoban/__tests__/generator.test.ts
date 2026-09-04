@@ -1,11 +1,58 @@
 import { describe, it, expect } from "vitest";
 import { mulberry32 } from "../rng";
-import { buildRoom, placeGoals, findFarthestState, generateLevel } from "../generator";
+import { buildRoom, placeGoals, findFarthestState, generateLevel, playerRegions } from "../generator";
 import { computeReachable } from "../reachability";
+import type { Board } from "../board";
 import { buildBoard } from "../board";
 import { solve } from "../solver";
-import { sortedBoxes } from "../state";
+import type { State } from "../state";
+import { legalPulls, sortedBoxes } from "../state";
 import { validateStructure } from "../validate";
+
+/**
+ * Independent oracle for `findFarthestState`: an unbounded, multi-source
+ * BFS over the pull graph, seeded from *every* free floor cell (so every
+ * player region is covered no matter how the boxes partition the room) and
+ * written without touching `findFarthestState` or `playerRegions`. Returns
+ * the true maximum pull-distance from the "boxes on goals" configuration.
+ */
+function referenceMaxPullDistance(board: Board, boxes: readonly number[]): number {
+  const key = (s: State): string => {
+    const reachable = computeReachable(board, s.boxes, s.player);
+    let representative = -1;
+    for (let cell = 0; cell < reachable.length; cell++) {
+      if (reachable[cell]) { representative = cell; break; }
+    }
+    return `${s.boxes.join(",")}|${representative}`;
+  };
+
+  const seen = new Set<string>();
+  let frontier: State[] = [];
+  for (let cell = 0; cell < board.floor.length; cell++) {
+    if (!board.floor[cell] || board.walls[cell] || boxes.includes(cell)) continue;
+    const state: State = { boxes: [...boxes], player: cell };
+    const k = key(state);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    frontier.push(state);
+  }
+
+  let distance = 0;
+  while (frontier.length > 0) {
+    const next: State[] = [];
+    for (const state of frontier) {
+      for (const pull of legalPulls(board, state)) {
+        const k = key(pull.state);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        next.push(pull.state);
+      }
+    }
+    if (next.length > 0) distance++;
+    frontier = next;
+  }
+  return distance;
+}
 
 describe("buildRoom", () => {
   it("produces a board fully enclosed by walls at the requested size", () => {
@@ -172,12 +219,171 @@ describe("findFarthestState", () => {
     expect(a.state).toEqual(b.state);
     expect(a.distance).toBe(b.distance);
   });
+
+  it("cross-validates against solve() on a longer, multi-box pull chain", () => {
+    // Two boxes in a room big enough that the winning chain is many pushes
+    // long, not the 2-push chain the single-box fixture above produces.
+    const { board } = buildBoard([
+      "########",
+      "#@     #",
+      "#      #",
+      "#  .   #",
+      "#      #",
+      "#   .  #",
+      "#      #",
+      "########",
+    ]);
+    const goalState = { boxes: sortedBoxes(board.goals), player: board.goals[0] - board.width };
+    const result = findFarthestState(board, goalState, mulberry32(11), { maxNodes: 20000, timeoutMs: 10000 });
+    expect(result.distance).toBeGreaterThan(4);
+
+    const solved = solve(board, result.state, { timeoutMs: 20000 });
+    expect(solved.solvable).toBe(true);
+    expect(solved.pushes).toBe(result.distance);
+  });
 });
+
+describe("playerRegions", () => {
+  it("returns one representative per connected component of free floor", () => {
+    // The box on the door cell splits this room into a 1-row top pocket and
+    // a 3-row bottom room.
+    const { board } = buildBoard(["#######", "#  @  #", "###.###", "#     #", "#     #", "#     #", "#######"]);
+    const boxes = sortedBoxes(board.goals);
+
+    const regions = playerRegions(board, boxes);
+    expect(regions.length).toBe(2);
+
+    // The representatives really are in different components, and together
+    // they cover every free floor cell exactly once.
+    const [a, b] = regions;
+    const reachA = computeReachable(board, boxes, a);
+    const reachB = computeReachable(board, boxes, b);
+    expect(reachA[b]).toBe(0);
+    expect(reachB[a]).toBe(0);
+    for (let cell = 0; cell < board.floor.length; cell++) {
+      if (!board.floor[cell] || board.walls[cell] || boxes.includes(cell)) continue;
+      expect(reachA[cell] + reachB[cell]).toBe(1);
+    }
+  });
+
+  it("returns a single region when no box splits the floor", () => {
+    const { board } = buildBoard(["#######", "#@    #", "#     #", "#  .  #", "#     #", "#######"]);
+    expect(playerRegions(board, []).length).toBe(1);
+  });
+});
+
+describe("findFarthestState multi-region seeding (regression: C1)", () => {
+  // Goal on the single door cell between a shallow top pocket and a deep
+  // bottom room. With a box parked on that goal the floor splits in two:
+  //
+  //   #######
+  //   #  @  #   <- top pocket: reaching the box's only pull-origin cell
+  //   ###.###      requires stepping into the wall above, so ZERO pulls
+  //   #     #
+  //   #     #   <- bottom room: the box pulls straight down and then has
+  //   #     #      a whole room to be pulled around in
+  //   #######
+  //
+  // `representativePlayer` picks the lowest-index free floor cell, which is
+  // in the top pocket — so seeding from that one region alone reports
+  // distance 0 and the entire bottom-room subgraph is never discovered.
+  const ROWS = ["#######", "#  @  #", "###.###", "#     #", "#     #", "#     #", "#######"];
+
+  it("finds the deep region even when the lowest-index region is a dead end", () => {
+    const { board } = buildBoard(ROWS);
+    const boxes = sortedBoxes(board.goals);
+    const regions = playerRegions(board, boxes);
+    expect(regions.length).toBe(2);
+
+    // Precondition: the region `representativePlayer` would have picked (the
+    // lowest-index one) genuinely has no pulls at all.
+    expect(legalPulls(board, { boxes, player: regions[0] })).toEqual([]);
+
+    const goalState = { boxes, player: regions[0] };
+    const result = findFarthestState(board, goalState, mulberry32(1), { maxNodes: 20000, timeoutMs: 10000 });
+
+    const reference = referenceMaxPullDistance(board, boxes);
+    expect(reference).toBeGreaterThan(0);
+    expect(result.distance).toBe(reference);
+
+    // And the level it reports is real: the solver agrees on the push count.
+    const solved = solve(board, result.state, { timeoutMs: 20000 });
+    expect(solved.solvable).toBe(true);
+    expect(solved.pushes).toBe(result.distance);
+  });
+
+  it("gives the same answer whichever region's player position is passed in", () => {
+    const { board } = buildBoard(ROWS);
+    const boxes = sortedBoxes(board.goals);
+    const regions = playerRegions(board, boxes);
+    const options = { maxNodes: 20000, timeoutMs: 10000 };
+    const fromTop = findFarthestState(board, { boxes, player: regions[0] }, mulberry32(4), options);
+    const fromBottom = findFarthestState(board, { boxes, player: regions[1] }, mulberry32(4), options);
+    expect(fromTop.distance).toBe(fromBottom.distance);
+    expect(fromTop.state).toEqual(fromBottom.state);
+  });
+
+  it("matches the independent multi-source reference across a seed sweep, including room-splitting cases", () => {
+    // A single hand-authored seed is exactly how this bug survived ten clean
+    // task reviews — sweep real generator-scale rooms instead, and assert the
+    // sweep actually covered multi-region goal configurations.
+    let checked = 0;
+    let multiRegion = 0;
+
+    for (let seed = 1; seed <= 40; seed++) {
+      const rng = mulberry32(seed);
+      const room = buildRoom(rng, 2, 2, 300);
+      if (room === null) continue;
+      const goals = placeGoals(room, 2, rng, { maxAttempts: 500 });
+      if (goals === null) continue;
+
+      const isGoal = new Uint8Array(room.width * room.height);
+      for (const g of goals) isGoal[g] = 1;
+      const board: Board = { ...room, goals, isGoal };
+
+      const regions = playerRegions(board, goals);
+      if (regions.length > 1) multiRegion++;
+
+      const result = findFarthestState(
+        board,
+        { boxes: goals, player: regions[0] },
+        rng,
+        { maxNodes: 100000, timeoutMs: 20000 },
+      );
+      // Node cap not reached, so the search is exhaustive and must agree
+      // exactly with the reference rather than merely not exceeding it.
+      expect(result.nodes).toBeLessThan(100000);
+      expect(result.distance).toBe(referenceMaxPullDistance(board, goals));
+      checked++;
+    }
+
+    expect(checked).toBeGreaterThanOrEqual(30);
+    expect(multiRegion).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Mirrors `cli/gen.ts`'s retry loop: a `null` from `generateLevel` means
+ * "this attempt didn't produce a level" (an unlucky room, goal placement, or
+ * a farthest state that turned out degenerate), not an error — so a caller
+ * that wants *a* level keeps drawing from the same `rng` stream.
+ */
+function generateWithRetries(
+  seed: number,
+  options: { blockCols: number; blockRows: number; boxCount: number },
+  maxAttempts = 40,
+) {
+  const rng = mulberry32(seed);
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const level = generateLevel(rng, options);
+    if (level !== null) return level;
+  }
+  return null;
+}
 
 describe("generateLevel", () => {
   it("produces a structurally valid, solvable level whose optimal solve distance matches its recorded distance", () => {
-    const rng = mulberry32(1);
-    const level = generateLevel(rng, { blockCols: 2, blockRows: 2, boxCount: 2 });
+    const level = generateWithRetries(1, { blockCols: 2, blockRows: 2, boxCount: 2 });
     expect(level).not.toBeNull();
     const lvl = level!;
 
@@ -199,9 +405,55 @@ describe("generateLevel", () => {
   });
 
   it("is deterministic for a fixed seed", () => {
-    const a = generateLevel(mulberry32(2), { blockCols: 2, blockRows: 2, boxCount: 2 });
-    const b = generateLevel(mulberry32(2), { blockCols: 2, blockRows: 2, boxCount: 2 });
+    const a = generateWithRetries(2, { blockCols: 2, blockRows: 2, boxCount: 2 });
+    const b = generateWithRetries(2, { blockCols: 2, blockRows: 2, boxCount: 2 });
+    expect(a).not.toBeNull(); // otherwise the comparison below is vacuous
     expect(a?.state).toEqual(b?.state);
     expect(a?.distance).toBe(b?.distance);
+  });
+
+  it("never returns a level that starts with a box already on a goal", () => {
+    // Regression: I2. Before the fix roughly half of accepted levels were
+    // partially pre-solved. Sweep enough seeds that a single unlucky one
+    // can't hide a regression.
+    let produced = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const level = generateWithRetries(seed, { blockCols: 2, blockRows: 2, boxCount: 3 });
+      if (level === null) continue;
+      produced++;
+      expect(validateStructure(level.board, level.state).map((i) => i.code)).not.toContain(
+        "box-on-goal-at-start",
+      );
+    }
+    expect(produced).toBeGreaterThan(0);
+  });
+
+  it("returns a goalState the recorded solution actually reaches", () => {
+    // With multi-region seeding the reported goalState is the winning
+    // chain's own root, not an arbitrary region's representative.
+    const level = generateWithRetries(1, { blockCols: 2, blockRows: 2, boxCount: 2 })!;
+    expect(level).not.toBeNull();
+
+    const DIRS: Record<string, { dx: number; dy: number }> = {
+      u: { dx: 0, dy: -1 }, d: { dx: 0, dy: 1 }, l: { dx: -1, dy: 0 }, r: { dx: 1, dy: 0 },
+    };
+    let player = level.state.player;
+    let boxes = [...level.state.boxes];
+    for (const ch of level.solution) {
+      const dir = DIRS[ch.toLowerCase()];
+      const x = player % level.board.width, y = (player - x) / level.board.width;
+      const target = (y + dir.dy) * level.board.width + (x + dir.dx);
+      const boxIndex = boxes.indexOf(target);
+      if (boxIndex === -1) { player = target; continue; }
+      const bx = target % level.board.width, by = (target - bx) / level.board.width;
+      boxes[boxIndex] = (by + dir.dy) * level.board.width + (bx + dir.dx);
+      player = target;
+    }
+    expect(sortedBoxes(boxes)).toEqual(level.goalState.boxes);
+    // The replay leaves the player somewhere in the winning root's region —
+    // the same region `goalState.player` represents. (Exact cell equality is
+    // not the contract: states differing only by player position within one
+    // region are the same state under `stateKey`.)
+    expect(computeReachable(level.board, boxes, level.goalState.player)[player]).toBe(1);
   });
 });

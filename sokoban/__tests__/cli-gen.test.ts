@@ -11,13 +11,13 @@ afterAll(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-function run(args: string[]): { status: number; stderr: string } {
+function run(args: string[]): { status: number; stdout: string; stderr: string } {
   try {
-    execFileSync("node", [CLI, ...args], { encoding: "utf8" });
-    return { status: 0, stderr: "" };
+    const stdout = execFileSync("node", [CLI, ...args], { encoding: "utf8" });
+    return { status: 0, stdout, stderr: "" };
   } catch (err) {
-    const e = err as { status: number; stderr: string };
-    return { status: e.status, stderr: e.stderr };
+    const e = err as { status: number; stdout: string; stderr: string };
+    return { status: e.status, stdout: e.stdout, stderr: e.stderr };
   }
 }
 
@@ -52,5 +52,16 @@ describe("cli/gen.ts", () => {
   it("exits 3 on an unrecognized argument", () => {
     const { status } = run(["batch", "--nonsense", "1"]);
     expect(status).toBe(3);
+  });
+
+  it("reports an unwritable --out path as a clean JSON error, not a stack trace", () => {
+    const out = join(dir, "no-such-directory", "levels.jsonl");
+    const { status, stdout, stderr } = run([
+      "batch", "--count", "1", "--seed", "1", "--box-count", "2",
+      "--block-cols", "2", "--block-rows", "2", "--out", out,
+    ]);
+    expect(status).toBe(3);
+    expect(JSON.parse(stdout.trim()).error).toContain("cannot write");
+    expect(stderr).not.toContain("ENOENT");
   });
 });
