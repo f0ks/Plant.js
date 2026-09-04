@@ -1,9 +1,159 @@
 # Sokoban Level Generation — Design Note
 
-Status: Phases 0-5 complete (design note, XSB/board/state core, the
+Status: Phases 0-6 complete (design note, XSB/board/state core, the
 push-optimal solver with all four planned deadlock/pruning techniques, the
-Microban validation gate, metrics/scoring calibration, and the generator
-itself). Not yet started: Phase 6 (integration).
+Microban validation gate, metrics/scoring calibration, the generator
+itself, and the demo-app integration adapter).
+
+## Phase 6: integration
+
+### 6.1 The gap being closed
+
+Phases 0-5 built a complete, standalone generator/solver toolkit under
+`sokoban/` — it speaks XSB and emits scored JSONL batches via
+`sokoban/cli/gen.ts` — but none of that output had ever reached
+`examples/sokoban`, the actual playable demo. That demo still shipped five
+levels hand-authored directly as `string[][][]` literals in
+`examples/sokoban/levels.ts`, in a private, non-XSB character set (§1's
+"current level representation is not XSB" table). Phase 6 is entirely an
+adapter problem, not a generation problem: turn accepted generator output
+into the demo's grid format, then run that adapter once and commit the
+result in place of the hand-authored levels.
+
+### 6.2 Two new files
+
+`sokoban/demoExport.ts` is the pure, unit-tested conversion logic:
+`xsbToDemoGrid(xsb)` parses one XSB level (`parseXSB`), rebuilds it through
+`buildBoard` + `boardToRows` to get a normalized full-width rectangular
+grid (no ragged rows to special-case), remaps every cell through the
+char-mapping table below, and pads the result with a 1-cell `"G"` border on
+all four sides. `selectDemoLevels(levels, count)` picks which levels to
+export and in what order (§6.4). `sokoban/cli/export-demo.ts` is the thin
+CLI wrapper around both: it reads a `gen.ts batch` JSONL file, calls
+`selectDemoLevels` then `xsbToDemoGrid` per selected level, and writes a
+`.ts` file with the same legend-comment header and
+`export const levels: string[][][] = [...]` shape the demo already expects
+— to `--out` if given, stdout otherwise, mirroring `gen.ts`'s own
+convention. It follows `gen.ts`'s existing `{"error": ...}` / exit-code-3
+convention (not a raw stack trace) for two failure modes: fewer than
+`count` accepted levels in the input, or a malformed JSONL line. Both files
+define their own minimal `DemoSourceLevel` interface (`xsb`, `score`,
+`accepted`, `pushes`) rather than importing `gen.ts`'s own JSONL record
+type, because `gen.ts` is a CLI entry point that calls `process.exit()` at
+module scope and must never be imported as a library.
+
+### 6.3 Char mapping
+
+| XSB | meaning | Demo |
+|---|---|---|
+| `#` | wall | `D` |
+| `@` | player | `@` |
+| `+` | player on goal | `%` |
+| `$` | box | `B` |
+| `*` | box on goal | `$` |
+| `.` | goal | `*` |
+| ` ` (floor) | floor | `-` |
+
+The mapping is by cell *content*, not literal character substitution:
+`*`, `.`, and `$` mean different things in the two formats (`$` is a bare
+box in XSB but "box on goal" in the demo's set; `*` is "box on goal" in
+XSB but a bare goal in the demo's set), so `xsbToDemoGrid` looks up meaning
+first and remaps second rather than doing any direct char-to-char swap.
+
+### 6.4 Grass border and selection/ordering
+
+**Grass border.** `xsbToDemoGrid` pads every generated level with a 1-cell
+`G` (grass) border on all four sides, matching the decorative style the
+five hand-authored levels already used — each of those, per the pre-Phase-6
+`examples/sokoban/levels.ts` (git history: commit `a48463f`), was itself
+walled on all four edges with `D` and then wrapped in one more `G` ring, the
+same shape §6.5's example grid below shows for a generated level. This is a
+visual-consistency choice, not a functional necessity, and it requires no
+change to `examples/sokoban/sokoban.ts`: `G` is already a wall-equivalent
+character there (`move()`'s blocking check is literally
+`if (target === "D" || target === "G")`), so the generator's output —
+which is already fully enclosed by `#`/`D` walls on its own — just gets one
+more decorative ring around the outside, identical in kind to what was
+there before.
+
+**Selection and ordering.** `selectDemoLevels(levels, count)` filters to
+`accepted: true`, sorts by `score` descending, takes the top `count`, then
+re-sorts *that selection* by `pushes` ascending. This is deliberately two
+different orderings, not one: score is the generator's own quality signal
+(§4.2's formula, roughly favoring more/longer box lines and penalizing
+excess boxes or degenerate touching), and it is what decides *which* five
+levels make the cut. But score order is not difficulty order — a highly
+scored level isn't necessarily the hardest one — and presenting the demo's
+levels in raw score order would produce an arbitrary difficulty sequence
+rather than the easy-to-hard ramp the old hand-authored set had. Push
+count (the push-optimal solution length) is the closer proxy for
+difficulty as experienced by a player, so the final file order re-sorts
+the already-selected five by `pushes` ascending.
+
+### 6.5 The actual conversion run
+
+Reusing the exact `--box-count 3 --block-cols 2 --block-rows 2` parameters
+already validated non-degenerate and non-pre-solved in §5.4, but with
+`--count 30` instead of 20 to comfortably clear 5 accepted levels within
+budget (per the design spec's own "open risk" note — confirmed by running
+it, not assumed):
+
+```
+$ node sokoban/cli/gen.ts batch --count 30 --seed 1 --box-count 3 --block-cols 2 --block-rows 2 --out <tmp>/phase6-levels.jsonl
+{"requested":30,"generated":30,"attempts":53}
+$ node sokoban/cli/export-demo.ts <tmp>/phase6-levels.jsonl --count 5 --out examples/sokoban/levels.ts
+```
+
+22 of the 30 generated levels came back `accepted: true` — well above the
+5 needed, no retry required. `selectDemoLevels`'s top-5-by-score, then
+re-sorted by pushes ascending, produced this file order in the committed
+`examples/sokoban/levels.ts` (index 0 = first level array in the file,
+index 4 = last):
+
+| File position | score | pushes |
+|---|---|---|
+| Level 1 (index 0) | 2310 | 14 |
+| Level 2 (index 1) | 2670 | 16 |
+| Level 3 (index 2) | 2660 | 16 |
+| Level 4 (index 3) | 2410 | 16 |
+| Level 5 (index 4) | 2700 | 20 |
+
+Pushes ascend 14→16→16→16→20 across the file by construction (that's the
+final sort key); Level 5, at 2700 score and 20 pushes, is both the
+highest-scored of the five and the hardest by push count — coincidence at
+these parameters, not a guarantee the two orderings always agree, which is
+exactly why they're computed as two separate sorts rather than one.
+
+Level 1 (index 0), the shortest solve of the five at 14 pushes, as it
+actually appears in the committed file — grass border, `D` walls, `*`
+goals, `B` boxes, `@` player:
+
+```
+["G", "G", "G", "G", "G", "G", "G", "G", "G", "G"],
+["G", "D", "D", "D", "D", "D", "D", "D", "D", "G"],
+["G", "D", "*", "-", "-", "-", "-", "-", "D", "G"],
+["G", "D", "-", "D", "-", "-", "B", "-", "D", "G"],
+["G", "D", "-", "-", "-", "D", "D", "-", "D", "G"],
+["G", "D", "-", "-", "D", "-", "*", "-", "D", "G"],
+["G", "D", "-", "B", "B", "-", "-", "-", "D", "G"],
+["G", "D", "D", "@", "-", "-", "*", "-", "D", "G"],
+["G", "D", "D", "D", "D", "D", "D", "D", "D", "G"],
+["G", "G", "G", "G", "G", "G", "G", "G", "G", "G"],
+```
+
+An 8×8 board: `--block-cols 2 --block-rows 2` tiles a 2×2 grid of
+`generator.ts`'s 3×3 templates into a 6×6 interior (`BLOCK_SIZE = 3`), then
+`buildRoom` encloses that in one cell of `#`/`D` wall on every side, giving
+8×8. `xsbToDemoGrid` then adds the 1-cell `G` ring on top of that, for a
+10×10 grid overall — matching every other level's dimensions in the file.
+
+`examples/sokoban/levels.ts` now ships these 5 generated levels, replacing
+the 5 hand-authored ones outright (no toggle between the two sets).
+`examples/sokoban/sokoban.ts` needed no changes at all: the exported
+`levels: string[][][]` shape, the legend-comment header, and every
+character the runtime already handles (`G`/`D`/`B`/`*`/`$`/`%`/`@`/`-`) are
+identical to what it already loaded, so this is a pure data swap, not a
+loader change.
 
 ## Phase 5: the generator
 
