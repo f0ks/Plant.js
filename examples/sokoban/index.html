@@ -4,17 +4,20 @@
   <meta charset="utf-8" />
   <title>Sokoban</title>
   <style>
-    code {
-      font-size: 14px;
-      color: white;
-    }
     body {
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       background: #333;
+      margin: 0;
+      padding: 12px;
+      box-sizing: border-box;
     }
     canvas {
       margin: 0 auto;
       display: block;
+      max-width: 100%;
+      height: auto;
+      touch-action: manipulation;
     }
     #level-select {
       text-align: center;
@@ -38,11 +41,48 @@
       color: #222;
       border-color: #8bc34a;
     }
+    #mobile-controls {
+      width: min(240px, 100%);
+      margin: 16px auto 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-areas:
+        ". up ."
+        "left down right";
+      gap: 8px;
+    }
+    #mobile-controls button {
+      min-height: 56px;
+      border: 1px solid #777;
+      border-radius: 8px;
+      background: #555;
+      color: #fff;
+      font-size: 28px;
+      line-height: 1;
+      touch-action: manipulation;
+      user-select: none;
+    }
+    #mobile-controls button:active {
+      background: #8bc34a;
+      color: #222;
+    }
+    #move-up { grid-area: up; }
+    #move-left { grid-area: left; }
+    #move-down { grid-area: down; }
+    #move-right { grid-area: right; }
+    @media (min-width: 600px) {
+      #mobile-controls { display: none; }
+    }
   </style>
 </head>
 <body>
   <div id="level-select"></div>
-  <code></code>
+  <div id="mobile-controls" aria-label="Movement controls">
+    <button id="move-up" type="button" data-dy="-1" data-dx="0" aria-label="Move up">▲</button>
+    <button id="move-left" type="button" data-dy="0" data-dx="-1" aria-label="Move left">◀</button>
+    <button id="move-down" type="button" data-dy="1" data-dx="0" aria-label="Move down">▼</button>
+    <button id="move-right" type="button" data-dy="0" data-dx="1" aria-label="Move right">▶</button>
+  </div>
   <script type="module" src="./sokoban.ts"></script>
 </body>
 </html>

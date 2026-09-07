@@ -1,5 +1,6 @@
 import { Scene, Sprite, GameLoop, animate } from "../../src";
 import { levels as originalLevels } from "./levels";
+import { getMoveDirection } from "./input";
 
 const CELL_SIZE = 30;
 const ANIM_DURATION = 120;
@@ -203,8 +204,6 @@ async function move(dy: number, dx: number): Promise<void> {
   // Update grid for player position
   updateGridPlayer({ y: ny, x: nx }, isOnSpot, isPushFromSpot);
 
-  renderDebugHtml();
-
   // Animate player and pushed box
   isAnimating = true;
   const animations: Promise<void>[] = [];
@@ -229,23 +228,7 @@ async function move(dy: number, dx: number): Promise<void> {
   renderView();
 }
 
-function renderDebugHtml(): void {
-  let htmlView = "";
-  for (let i = 0; i < xLength; i++) {
-    for (let j = 0; j < yLength; j++) {
-      htmlView += level[i][j] + " ";
-      if (j === level[i].length - 1) {
-        htmlView += "<br>";
-      }
-    }
-  }
-  const codeEl = document.querySelector("code");
-  if (codeEl) codeEl.innerHTML = htmlView;
-}
-
 function renderView(): void {
-  renderDebugHtml();
-
   const curPosition = getPlayerPosition();
   player.x = curPosition.x * CELL_SIZE;
   player.y = curPosition.y * CELL_SIZE;
@@ -305,6 +288,31 @@ function onKeyDown(e: KeyboardEvent): void {
   }
 }
 
+function onCanvasClick(e: MouseEvent): void {
+  if (isAnimating) return;
+
+  const rect = scene.htmlNode.getBoundingClientRect();
+  const scaleX = scene.htmlNode.width / rect.width;
+  const scaleY = scene.htmlNode.height / rect.height;
+  const target = {
+    x: Math.floor(((e.clientX - rect.left) * scaleX) / CELL_SIZE),
+    y: Math.floor(((e.clientY - rect.top) * scaleY) / CELL_SIZE),
+  };
+  const direction = getMoveDirection(getPlayerPosition(), target);
+  if (direction) void move(direction.dy, direction.dx);
+}
+
+function buildMobileControls(): void {
+  const controls = document.getElementById("mobile-controls");
+  if (!controls) return;
+  scene.htmlNode.insertAdjacentElement("afterend", controls);
+  controls.querySelectorAll<HTMLButtonElement>("button[data-dy][data-dx]").forEach((button) => {
+    button.addEventListener("click", () => {
+      void move(Number(button.dataset.dy), Number(button.dataset.dx));
+    });
+  });
+}
+
 // Initialize
 async function init(): Promise<void> {
   await Sprite.preload([
@@ -335,8 +343,10 @@ async function init(): Promise<void> {
   renderView();
   isInitialized = true;
   buildLevelButtons();
+  buildMobileControls();
 
   window.addEventListener("keydown", onKeyDown);
+  scene.htmlNode.addEventListener("click", onCanvasClick);
 }
 
 void init();
